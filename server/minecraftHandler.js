@@ -9,6 +9,7 @@ class MinecraftHandler extends EventEmitter {
         this.serverDir = serverDir;
         this.process = null;
         this.status = 'offline';
+        this.players = new Map();
     }
 
     start() {
@@ -44,6 +45,8 @@ class MinecraftHandler extends EventEmitter {
                 this.status = 'online';
                 this.emit('status', this.status);
             }
+
+            this.parsePlayerEvents(line);
         });
 
         this.process.stderr.on('data', (data) => {
@@ -75,6 +78,37 @@ class MinecraftHandler extends EventEmitter {
 
     getStatus() {
         return this.status;
+    }
+
+    parsePlayerEvents(line) {
+        const joinMatch = line.match(/(\w+)\[.*?\] logged in/i) ||
+            line.match(/(\w+) joined the game/i);
+        if (joinMatch) {
+            const username = joinMatch[1];
+            this.players.set(username, {
+                username,
+                joinedAt: new Date().toISOString(),
+            });
+            this.emit('players', Array.from(this.players.values()));
+            return;
+        }
+
+        const leaveMatch = line.match(/(\w+) left the game/i) ||
+            line.match(/(\w+) lost connection/i);
+        if (leaveMatch) {
+            const username = leaveMatch[1];
+            this.players.delete(username);
+            this.emit('players', Array.from(this.players.values()));
+            return;
+        }
+    }
+
+    getPlayers() {
+        return Array.from(this.players.values());
+    }
+
+    getPlayerData(username) {
+        return this.players.get(username) || null;
     }
 }
 

@@ -6,6 +6,7 @@ const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
 const MinecraftHandler = require('./minecraftHandler');
+const PlayerDataParser = require('./playerDataParser');
 
 const app = express();
 const server = http.createServer(app);
@@ -41,6 +42,7 @@ const modsStorage = multer.diskStorage({
 const upload = multer({ storage: modsStorage });
 
 const mc = new MinecraftHandler(JAR_NAME, SERVER_DIR);
+const playerDataParser = new PlayerDataParser(SERVER_DIR);
 
 io.on('connection', (socket) => {
     console.log('Client connected');
@@ -57,6 +59,10 @@ mc.on('console', (data) => {
 
 mc.on('status', (status) => {
     io.emit('status', status);
+});
+
+mc.on('players', (players) => {
+    io.emit('players', players);
 });
 
 app.get('/api/status', (req, res) => {
@@ -104,6 +110,31 @@ app.post('/api/delete-mod', (req, res) => {
         res.json({ success: true });
     } else {
         res.status(404).json({ error: 'File not found' });
+    }
+});
+
+app.get('/api/players', (req, res) => {
+    res.json({ players: mc.getPlayers() });
+});
+
+app.get('/api/players/:username', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const player = mc.getPlayerData(username);
+
+        if (!player) {
+            return res.status(404).json({ error: 'Player not found or offline' });
+        }
+
+        const enhancedData = await playerDataParser.getEnhancedPlayerData(username);
+
+        res.json({
+            ...player,
+            ...enhancedData,
+        });
+    } catch (err) {
+        console.error('Error fetching player data:', err);
+        res.status(500).json({ error: 'Failed to fetch player data' });
     }
 });
 
