@@ -6,7 +6,7 @@ import Console from './components/Console';
 import ModManager from './components/ModManager';
 import Players from './components/Players';
 
-const socket = io(`http://${window.location.hostname}:3000`);
+const socket = io();
 
 function App() {
     const [status, setStatus] = useState('offline');

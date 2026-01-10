@@ -7,7 +7,7 @@ export default function Dashboard({ socket, status }) {
     const sendControl = async (action) => {
         setLoading(true);
         try {
-            await fetch(`http://${window.location.hostname}:3000/api/control`, {
+            await fetch(`/api/control`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action }),

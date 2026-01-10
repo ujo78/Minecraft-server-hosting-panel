@@ -10,7 +10,7 @@ export default function Players({ socket }) {
     const fetchPlayerDetails = async (username) => {
         setLoadingDetails(true);
         try {
-            const res = await fetch(`http://${window.location.hostname}:3000/api/players/${username}`);
+            const res = await fetch(`/api/players/${username}`);
             const data = await res.json();
             setDetailedData(data);
         } catch (err) {
@@ -30,7 +30,7 @@ export default function Players({ socket }) {
     useEffect(() => {
         const fetchPlayers = async () => {
             try {
-                const res = await fetch(`http://${window.location.hostname}:3000/api/players`);
+                const res = await fetch(`/api/players`);
                 const data = await res.json();
                 setPlayers(data.players || []);
             } catch (err) {

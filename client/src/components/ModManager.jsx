@@ -7,7 +7,7 @@ export default function ModManager() {
 
     const fetchMods = async () => {
         try {
-            const res = await fetch(`http://${window.location.hostname}:3000/api/mods`);
+            const res = await fetch(`/api/mods`);
             const data = await res.json();
             setMods(data.mods || []);
         } catch (err) {
@@ -31,7 +31,7 @@ export default function ModManager() {
 
         setUploading(true);
         try {
-            await fetch(`http://${window.location.hostname}:3000/api/upload-mod`, {
+            await fetch(`/api/upload-mod`, {
                 method: 'POST',
                 body: formData,
             });
@@ -47,7 +47,7 @@ export default function ModManager() {
         if (!confirm(`Delete ${filename}?`)) return;
 
         try {
-            await fetch(`http://${window.location.hostname}:3000/api/delete-mod`, {
+            await fetch(`/api/delete-mod`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename })
