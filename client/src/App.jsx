@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { Terminal, HardDrive, Play, Square, Settings, Menu } from 'lucide-react';
+import { Terminal, HardDrive, Play, Square, Settings, Menu, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Console from './components/Console';
 import ModManager from './components/ModManager';
+import Players from './components/Players';
 
 const socket = io(`http://${window.location.hostname}:3000`);
 
@@ -26,6 +27,7 @@ function App() {
         switch (activeTab) {
             case 'dashboard': return <Dashboard socket={socket} status={status} />;
             case 'console': return <Console socket={socket} />;
+            case 'players': return <Players socket={socket} />;
             case 'mods': return <ModManager />;
             default: return <Dashboard socket={socket} status={status} />;
         }
@@ -43,6 +45,7 @@ function App() {
                 <nav className="p-4 space-y-2">
                     <SidebarItem icon={<Settings className="w-5 h-5" />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }} />
                     <SidebarItem icon={<Terminal className="w-5 h-5" />} label="Console" active={activeTab === 'console'} onClick={() => { setActiveTab('console'); setMobileMenuOpen(false); }} />
+                    <SidebarItem icon={<Users className="w-5 h-5" />} label="Players" active={activeTab === 'players'} onClick={() => { setActiveTab('players'); setMobileMenuOpen(false); }} />
                     <SidebarItem icon={<HardDrive className="w-5 h-5" />} label="Mods" active={activeTab === 'mods'} onClick={() => { setActiveTab('mods'); setMobileMenuOpen(false); }} />
                 </nav>
 
