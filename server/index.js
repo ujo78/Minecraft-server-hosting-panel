@@ -190,7 +190,7 @@ app.post('/api/players/action', async (req, res) => {
 });
 
 
-});
+
 
 // --- Server Management & CurseForge APIs ---
 
