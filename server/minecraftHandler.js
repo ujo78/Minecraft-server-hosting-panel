@@ -76,6 +76,10 @@ class MinecraftHandler extends EventEmitter {
         }
     }
 
+    sendCommand(cmd) {
+        this.command(cmd);
+    }
+
     getStatus() {
         return this.status;
     }

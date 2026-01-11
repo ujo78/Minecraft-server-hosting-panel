@@ -20,6 +20,8 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
 const SERVER_DIR = path.join(__dirname, '..', 'stoneblock4');
 const JAR_NAME = 'run.sh';
 
@@ -136,6 +138,32 @@ app.get('/api/players/:username', async (req, res) => {
         console.error('Error fetching player data:', err);
         res.status(500).json({ error: 'Failed to fetch player data' });
     }
+});
+
+app.post('/api/players/action', async (req, res) => {
+    try {
+        const { action, username, reason } = req.body;
+
+        if (!['op', 'deop', 'kick', 'ban'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid action' });
+        }
+
+        let command = `${action} ${username}`;
+        if ((action === 'kick' || action === 'ban') && reason) {
+            command += ` ${reason}`;
+        }
+
+        mc.sendCommand(command);
+        res.json({ success: true, message: `Executed ${action} on ${username}` });
+    } catch (err) {
+        console.error('Error executing player action:', err);
+        res.status(500).json({ error: 'Failed to execute action' });
+    }
+});
+
+
+app.use((req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
 const PORT = 3000;

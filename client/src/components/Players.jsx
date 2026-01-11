@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Clock, X, MapPin, Heart, Skull, Gamepad2, TrendingUp } from 'lucide-react';
+import { Users, Clock, X, MapPin, Heart, Skull, Gamepad2, TrendingUp, Shield, Ban, DoorOpen } from 'lucide-react';
 
 export default function Players({ socket }) {
     const [players, setPlayers] = useState([]);
@@ -25,6 +25,32 @@ export default function Players({ socket }) {
         setSelectedPlayer(player);
         setDetailedData(null);
         fetchPlayerDetails(player.username);
+    };
+
+    const handleAction = async (action) => {
+        let reason = '';
+        if (action === 'kick' || action === 'ban') {
+            reason = prompt(`Enter reason for ${action}:`);
+            if (reason === null) return;
+        }
+
+        if (!confirm(`Are you sure you want to ${action} ${selectedPlayer.username}?`)) return;
+
+        try {
+            await fetch('/api/players/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action,
+                    username: selectedPlayer.username,
+                    reason
+                })
+            });
+            alert(`Executed ${action} on ${selectedPlayer.username}`);
+        } catch (err) {
+            console.error(err);
+            alert(`Failed to execute ${action}`);
+        }
     };
 
     useEffect(() => {
@@ -153,6 +179,33 @@ export default function Players({ socket }) {
                                     />
                                     <h4 className="text-2xl font-bold text-mc-green mt-4">{selectedPlayer.username}</h4>
                                     <p className="text-gray-400">Session: {getTimeSince(selectedPlayer.joinedAt)}</p>
+
+                                    <div className="flex gap-2 mt-4">
+                                        <button
+                                            onClick={() => handleAction('op')}
+                                            className="px-3 py-1 bg-yellow-600/20 text-yellow-500 border border-yellow-600/50 rounded hover:bg-yellow-600/30 transition-colors flex items-center gap-1"
+                                        >
+                                            <Shield className="w-4 h-4" /> OP
+                                        </button>
+                                        <button
+                                            onClick={() => handleAction('deop')}
+                                            className="px-3 py-1 bg-gray-700 text-gray-300 border border-gray-600 rounded hover:bg-gray-600 transition-colors flex items-center gap-1"
+                                        >
+                                            <Shield className="w-4 h-4" /> DEOP
+                                        </button>
+                                        <button
+                                            onClick={() => handleAction('kick')}
+                                            className="px-3 py-1 bg-orange-600/20 text-orange-500 border border-orange-600/50 rounded hover:bg-orange-600/30 transition-colors flex items-center gap-1"
+                                        >
+                                            <DoorOpen className="w-4 h-4" /> KICK
+                                        </button>
+                                        <button
+                                            onClick={() => handleAction('ban')}
+                                            className="px-3 py-1 bg-red-600/20 text-red-500 border border-red-600/50 rounded hover:bg-red-600/30 transition-colors flex items-center gap-1"
+                                        >
+                                            <Ban className="w-4 h-4" /> BAN
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {detailedData?.playerData && (
