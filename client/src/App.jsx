@@ -1,10 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import io from 'socket.io-client';
-import { Terminal, HardDrive, Play, Square, Settings, Menu, Users } from 'lucide-react';
-import Dashboard from './components/Dashboard';
-import Console from './components/Console';
-import ModManager from './components/ModManager';
-import Players from './components/Players';
+import ServerSelector from './components/ServerSelector';
 
 const socket = io();
 
@@ -12,8 +6,17 @@ function App() {
     const [status, setStatus] = useState('offline');
     const [activeTab, setActiveTab] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [activeServerId, setActiveServerId] = useState(null);
 
     useEffect(() => {
+        // Fetch initial active server
+        fetch('/api/servers')
+            .then(res => res.json())
+            .then(data => {
+                if (data.activeId) setActiveServerId(data.activeId);
+            })
+            .catch(err => console.error("Failed to fetch active server", err));
+
         socket.on('status', (newStatus) => {
             setStatus(newStatus);
         });
@@ -23,7 +26,17 @@ function App() {
         };
     }, []);
 
+    const handleServerSwitch = (newId) => {
+        setActiveServerId(newId);
+        // Refresh status/console by reconnecting socket? 
+        // Socket events are global but backend emits based on current process.
+        // Backend handles switching the process.
+        // We might want to clear console or something, but basic switch is enough.
+        setStatus('offline'); // Assume offline until status update
+    };
+
     const renderContent = () => {
+        // ... (existing switch)
         switch (activeTab) {
             case 'dashboard': return <Dashboard socket={socket} status={status} />;
             case 'console': return <Console socket={socket} />;
@@ -65,6 +78,10 @@ function App() {
                     </button>
                 </div>
                 <div className="flex-1 overflow-auto p-6">
+                    <ServerSelector
+                        activeServerId={activeServerId}
+                        onServerSwitch={handleServerSwitch}
+                    />
                     {renderContent()}
                 </div>
             </main>

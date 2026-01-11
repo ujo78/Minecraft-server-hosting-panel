@@ -190,6 +190,87 @@ app.post('/api/players/action', async (req, res) => {
 });
 
 
+});
+
+// --- Server Management & CurseForge APIs ---
+
+const CurseForge = require('./curseforge');
+const curseForge = new CurseForge(); // Uses default key
+
+app.get('/api/servers', (req, res) => {
+    const servers = serverManager.getServers();
+    const active = serverManager.getActiveServer();
+    res.json({ servers, activeId: active ? active.id : null });
+});
+
+app.post('/api/servers/switch', async (req, res) => {
+    const { id } = req.body;
+
+    if (mc.getStatus() !== 'offline') {
+        return res.status(400).json({ error: 'Server must be offline to switch' });
+    }
+
+    if (serverManager.setActiveServer(id)) {
+        reloadMinecraftHandler();
+
+        // Create new instance
+        // Remove old listeners? simple overwrite for now
+        mc = new MinecraftHandler(path.join(SERVER_DIR, JAR_NAME), SERVER_DIR);
+        setupMcListeners(mc);
+
+        res.json({ success: true, activeId: id });
+    } else {
+        res.status(404).json({ error: 'Server not found' });
+    }
+});
+
+app.delete('/api/servers/:id', (req, res) => {
+    const { id } = req.params;
+    if (serverManager.getActiveServer().id === id) {
+        return res.status(400).json({ error: 'Cannot delete active server' });
+    }
+
+    if (serverManager.deleteServer(id)) {
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: 'Server not found' });
+    }
+});
+
+app.get('/api/modpacks/search', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q) return res.json({ data: [] });
+        const results = await curseForge.searchModpacks(q);
+        res.json(results);
+    } catch (err) {
+        console.error("Search failed:", err);
+        res.status(500).json({ error: 'Search failed' });
+    }
+});
+
+app.post('/api/servers/install', async (req, res) => {
+    try {
+        const { id, name, fileId, modId, iconUrl } = req.body;
+
+        // 1. Get download URL from CurseForge
+        const fileData = await curseForge.getFile(modId, fileId);
+        const downloadUrl = fileData.data.downloadUrl;
+
+        if (!downloadUrl) {
+            return res.status(400).json({ error: 'No download URL found for this file' });
+        }
+
+        // 2. Start installation (Async? For now we await it)
+        await serverManager.installServer(id, name, downloadUrl, iconUrl);
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Install failed:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
