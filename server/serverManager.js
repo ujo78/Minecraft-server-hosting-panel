@@ -41,16 +41,51 @@ const unzipFile = (zipPath, destPath) => {
 
 const downloadFile = (url, destPath) => {
     return new Promise((resolve, reject) => {
+        console.log(`Starting download from: ${url}`);
         const file = fs.createWriteStream(destPath);
-        https.get(url, function (response) {
-            response.pipe(file);
-            file.on('finish', function () {
-                file.close(resolve);
+
+        const download = (downloadUrl) => {
+            https.get(downloadUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            }, function (response) {
+                console.log(`Response status: ${response.statusCode}`);
+                console.log(`Response headers:`, response.headers);
+
+                // Handle redirects
+                if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307 || response.statusCode === 308) {
+                    const redirectUrl = response.headers.location;
+                    console.log(`Following redirect to: ${redirectUrl}`);
+                    file.close();
+
+                    // Recursively download from redirect - properly chain the promise!
+                    downloadFile(redirectUrl, destPath).then(resolve).catch(reject);
+                    return;
+                }
+
+                if (response.statusCode !== 200) {
+                    file.close();
+                    fs.unlinkSync(destPath);
+                    reject(new Error(`Download failed with status ${response.statusCode}`));
+                    return;
+                }
+
+                response.pipe(file);
+                file.on('finish', function () {
+                    file.close(() => {
+                        console.log(`Download complete: ${destPath}`);
+                        resolve();
+                    });
+                });
+            }).on('error', function (err) {
+                file.close();
+                fs.unlink(destPath, () => { });
+                reject(err);
             });
-        }).on('error', function (err) {
-            fs.unlink(destPath, () => { }); // Delete the file async. (But we don't check result)
-            reject(err);
-        });
+        };
+
+        download(url);
     });
 };
 
@@ -142,25 +177,56 @@ class ServerManager {
 
             // Clean up zip
             fs.unlinkSync(zipPath);
+            // CRITICAL: Detect if this is a client pack (not a server pack)
+            const files = fs.readdirSync(serverDir);
+            console.log(`Files in extracted server pack:`, files);
 
-            // Try to find the start script
+            // Client packs have manifest.json + overrides folder
+            if (files.includes('manifest.json') && files.includes('overrides')) {
+                console.error('Detected client pack (manifest.json + overrides)');
+
+                // Cleanup the extracted files
+                fs.rmSync(serverDir, { recursive: true, force: true });
+
+                throw new Error('Downloaded file is a client pack, not a server pack. Cannot run as a server.');
+            }
+            // Try to find the start script - expanded patterns
             let jarName = 'run.sh';
-            // Simple heuristic to find a .sh or .bat file if run.sh doesn't exist
-            if (!fs.existsSync(path.join(serverDir, 'run.sh'))) {
-                const files = fs.readdirSync(serverDir);
+
+            const startupPatterns = [
+                'run.sh', 'start.sh', 'startserver.sh', 'ServerStart.sh',
+                'start-server.sh', 'run-server.sh', 'launch.sh',
+                'run.bat', 'start.bat', 'startserver.bat'
+            ];
+
+            // Check for known patterns first
+            for (const pattern of startupPatterns) {
+                if (files.includes(pattern)) {
+                    jarName = pattern;
+                    console.log(`Found startup script: ${pattern}`);
+                    break;
+                }
+            }
+
+            // If no known pattern, search for any .sh or .bat file
+            if (jarName === 'run.sh' && !files.includes('run.sh')) {
                 const script = files.find(f => f.endsWith('.sh') || f.endsWith('.bat'));
-                if (script) jarName = script;
-                // If forge installer exists, we might need to run it? 
-                // For now assumption is "Server Pack" contains ready-to-run scripts.
+                if (script) {
+                    jarName = script;
+                    console.log(`Found startup script by extension: ${script}`);
+                }
             }
 
             // Accept EULA automatically
             fs.writeFileSync(path.join(serverDir, 'eula.txt'), 'eula=true');
 
-            // Ensure script is executable
-            if (jarName.endsWith('.sh')) {
-                // We'll use fs.chmodSync
-                fs.chmodSync(path.join(serverDir, jarName), '755');
+            // Ensure script is executable (only if file exists)
+            const scriptPath = path.join(serverDir, jarName);
+            if (jarName.endsWith('.sh') && fs.existsSync(scriptPath)) {
+                fs.chmodSync(scriptPath, '755');
+                console.log(`Made ${jarName} executable`);
+            } else if (!fs.existsSync(scriptPath)) {
+                console.warn(`Warning: Startup script ${jarName} not found - this might be a client pack or require manual setup`);
             }
 
             this.addServer({
@@ -174,7 +240,17 @@ class ServerManager {
             return true;
         } catch (err) {
             console.error("Install failed:", err);
-            // Cleanup on failure?
+
+            // Cleanup on failure - remove the server directory
+            try {
+                if (fs.existsSync(serverDir)) {
+                    console.log(`Cleaning up failed installation: ${serverDir}`);
+                    fs.rmSync(serverDir, { recursive: true, force: true });
+                }
+            } catch (cleanupErr) {
+                console.error('Cleanup failed:', cleanupErr);
+            }
+
             throw err;
         }
     }

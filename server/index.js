@@ -253,15 +253,47 @@ app.post('/api/servers/install', async (req, res) => {
     try {
         const { id, name, fileId, modId, iconUrl } = req.body;
 
-        // 1. Get download URL from CurseForge
-        const fileData = await curseForge.getFile(modId, fileId);
-        const downloadUrl = fileData.data.downloadUrl;
+        console.log(`Install request for: ${name} (modId: ${modId}, fileId: ${fileId})`);
 
-        if (!downloadUrl) {
-            return res.status(400).json({ error: 'No download URL found for this file' });
+        // 1. Fetch all files for this modpack to find the server pack
+        const filesData = await curseForge.getModpackFiles(modId);
+        console.log(`Found ${filesData.data.length} files for modpack ${modId}`);
+
+        // 2. Look for server pack files (usually contain "server" in filename)
+        const serverFiles = filesData.data.filter(file =>
+            file.fileName &&
+            file.fileName.toLowerCase().includes('server') &&
+            !file.fileName.toLowerCase().includes('client')
+        );
+
+        console.log(`Found ${serverFiles.length} potential server pack files:`,
+            serverFiles.map(f => f.fileName));
+
+        let targetFile;
+
+        if (serverFiles.length > 0) {
+            // Use the most recent server pack (first in list, as they're sorted by date)
+            targetFile = serverFiles[0];
+            console.log(`Using server pack: ${targetFile.fileName} (fileId: ${targetFile.id})`);
+        } else {
+            // NO FALLBACK - Reject installation if no server pack exists
+            console.error(`No server pack available for modpack: ${name}`);
+            return res.status(400).json({
+                error: 'This modpack does not have a server pack available. Only client packs were found.'
+            });
         }
 
-        // 2. Start installation (Async? For now we await it)
+        const downloadUrl = targetFile.downloadUrl;
+
+        if (!downloadUrl) {
+            return res.status(400).json({
+                error: 'No download URL found. This modpack may not have a server pack available.'
+            });
+        }
+
+        console.log(`Download URL: ${downloadUrl}`);
+
+        // 3. Start installation
         await serverManager.installServer(id, name, downloadUrl, iconUrl);
 
         res.json({ success: true });

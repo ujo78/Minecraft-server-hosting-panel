@@ -1,6 +1,6 @@
 const https = require('https');
 
-const API_KEY = '$2a$10$hc1fVCzW/xgBBFFxggGjAueD0r1p1.DLCAQ1oOLIIxealh.OINkeS'; // Public API key for testing, user should ideally provide their own
+const API_KEY = '$2a$10$p/9qTcoJvw0EjurhyX0zyuGCYECaRkVeo0oo8jLb7edNSHEgtLHZ2'; // Public API key for testing, user should ideally provide their own
 const BASE_URL = 'https://api.curseforge.com/v1';
 
 const getHeaders = (apiKey) => ({
