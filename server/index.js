@@ -192,10 +192,7 @@ app.post('/api/players/action', async (req, res) => {
 
 
 
-// --- Server Management & CurseForge APIs ---
-
-const CurseForge = require('./curseforge');
-const curseForge = new CurseForge(); // Uses default key
+// --- Server Management APIs ---
 
 app.get('/api/servers', (req, res) => {
     const servers = serverManager.getServers();
@@ -237,63 +234,21 @@ app.delete('/api/servers/:id', (req, res) => {
     }
 });
 
-app.get('/api/modpacks/search', async (req, res) => {
-    try {
-        const { q } = req.query;
-        if (!q) return res.json({ data: [] });
-        const results = await curseForge.searchModpacks(q);
-        res.json(results);
-    } catch (err) {
-        console.error("Search failed:", err);
-        res.status(500).json({ error: 'Search failed' });
-    }
-});
-
 app.post('/api/servers/install', async (req, res) => {
     try {
-        const { id, name, fileId, modId, iconUrl } = req.body;
+        const { id, name, downloadUrl, iconUrl } = req.body;
 
-        console.log(`Install request for: ${name} (modId: ${modId}, fileId: ${fileId})`);
-
-        // 1. Fetch all files for this modpack to find the server pack
-        const filesData = await curseForge.getModpackFiles(modId);
-        console.log(`Found ${filesData.data.length} files for modpack ${modId}`);
-
-        // 2. Look for server pack files (usually contain "server" in filename)
-        const serverFiles = filesData.data.filter(file =>
-            file.fileName &&
-            file.fileName.toLowerCase().includes('server') &&
-            !file.fileName.toLowerCase().includes('client')
-        );
-
-        console.log(`Found ${serverFiles.length} potential server pack files:`,
-            serverFiles.map(f => f.fileName));
-
-        let targetFile;
-
-        if (serverFiles.length > 0) {
-            // Use the most recent server pack (first in list, as they're sorted by date)
-            targetFile = serverFiles[0];
-            console.log(`Using server pack: ${targetFile.fileName} (fileId: ${targetFile.id})`);
-        } else {
-            // NO FALLBACK - Reject installation if no server pack exists
-            console.error(`No server pack available for modpack: ${name}`);
+        // Validation
+        if (!id || !name || !downloadUrl) {
             return res.status(400).json({
-                error: 'This modpack does not have a server pack available. Only client packs were found.'
+                error: 'Missing required fields: id, name, and downloadUrl are required'
             });
         }
 
-        const downloadUrl = targetFile.downloadUrl;
-
-        if (!downloadUrl) {
-            return res.status(400).json({
-                error: 'No download URL found. This modpack may not have a server pack available.'
-            });
-        }
-
+        console.log(`Install request for: ${name} (ID: ${id})`);
         console.log(`Download URL: ${downloadUrl}`);
 
-        // 3. Start installation
+        // Start installation with direct download URL
         await serverManager.installServer(id, name, downloadUrl, iconUrl);
 
         res.json({ success: true });

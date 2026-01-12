@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Server as ServerIcon, Plus, Trash2, PlayCircle, Loader2 } from 'lucide-react';
-import ModpackSearch from './ModpackSearch';
+import AddServerForm from './AddServerForm';
 
 export default function ServerSelector({ activeServerId, onServerSwitch }) {
     const [servers, setServers] = useState([]);
@@ -61,67 +61,11 @@ export default function ServerSelector({ activeServerId, onServerSwitch }) {
         }
     };
 
-    const handleInstall = async (modpack) => {
-        // We need to fetch the files first to get the latest server file
-        setInstalling(true);
-        setInstallStatus(`Preparing to install ${modpack.name}...`);
+    const handleInstall = async () => {
+        // Installation is handled by AddServerForm
+        // Just refresh the server list and close the form
         setShowSearch(false);
-
-        try {
-            // 1. Get files for this modpack
-            const filesRes = await fetch(`/api/modpacks/search?q=${encodeURIComponent(modpack.name)}`);
-            // WAIT, search endpoint is generic. We need a way to get files.
-            // But for MVP, let's assume valid search. 
-            // Actually, we need a separate endpoint to get files or just try to find a "server pack"
-            // The curseforge.js wrapper has getModpackFiles(modId). We need to expose that or use the search result?
-            // The search result doesn't have files.
-
-            // Let's IMPROVE: allow backend to find the best file or assume we passed enough info?
-            // Modpack object has `id`. We can call backend `install` with `modId` and let backend find the file.
-
-            // For now, let's send modId and let backend pick latest file (we might need to update backend logic or simple heuristic)
-            // But wait, our backend install endpoint EXPECTS `fileId`.
-            // Let's do a quick hack: we'll just pick the `mainFileId` from the modpack object if available, or fetch files.
-
-            // Since we can't easily fetch files from frontend without exposing another API, let's just make the backend smarter later?
-            // OR: Modpack object from search usually has `latestFiles`.
-
-            const serverFile = modpack.latestFiles?.find(f => f.serverPackFileId) || modpack.latestFiles?.[0];
-            // Note: CurseForge API structure might vary. 
-            // Let's assume we pass modId and let backend handle fetching the file list if needed?
-            // Our backend `install` endpoint expects `fileId`.
-
-            // Let's try to just use the main file ID
-            const fileId = modpack.mainFileId;
-
-            setInstallStatus(`Downloading & Installing ${modpack.name}... This may take a while.`);
-
-            const res = await fetch('/api/servers/install', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: modpack.slug || modpack.name.toLowerCase().replace(/\s+/g, '-'),
-                    name: modpack.name,
-                    modId: modpack.id,
-                    fileId: fileId, // Use main file
-                    iconUrl: modpack.logo?.thumbnailUrl
-                })
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                alert("Installation complete!");
-                fetchServers();
-            } else {
-                alert("Installation failed: " + data.error);
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Installation failed");
-        } finally {
-            setInstalling(false);
-            setInstallStatus('');
-        }
+        await fetchServers();
     };
 
     return (
@@ -203,7 +147,7 @@ export default function ServerSelector({ activeServerId, onServerSwitch }) {
             </div>
 
             {showSearch && (
-                <ModpackSearch
+                <AddServerForm
                     onClose={() => setShowSearch(false)}
                     onInstall={handleInstall}
                 />
