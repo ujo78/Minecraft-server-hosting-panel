@@ -29,39 +29,52 @@ export default function Console({ socket }) {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-140px)] bg-dark-800 rounded-2xl border border-dark-700 overflow-hidden shadow-lg">
-            <div className="bg-dark-900 p-4 border-b border-dark-700 flex items-center gap-2">
-                <Terminal className="w-5 h-5 text-gray-400" />
-                <span className="font-mono text-sm text-gray-400">root@minecraft-server:~#</span>
+        <div className="flex flex-col h-[calc(100vh-180px)] pixel-fade-in">
+            {/* Terminal Header */}
+            <div className="mc-panel p-3 mb-2">
+                <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 mc-text-green" />
+                    <span className="text-[8px] mc-text-green">MINECRAFT CONSOLE</span>
+                </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-1 bg-black">
-                {logs.length === 0 && <div className="text-gray-600 italic">No logs yet...</div>}
-                {logs.map((log, i) => (
-                    <div key={i} className="break-words text-gray-300 whitespace-pre-wrap">
-                        <span className="text-gray-500 mr-2">[{new Date().toLocaleTimeString()}]</span>
-                        {log}
-                    </div>
-                ))}
-                <div ref={logsEndRef} />
+            {/* Console Display */}
+            <div className="flex-1 mc-panel-dark p-4 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-y-auto space-y-1 font-mono">
+                    {logs.length === 0 && (
+                        <div className="text-[10px] mc-text-gray">
+                            &gt; Waiting for server output...
+                        </div>
+                    )}
+                    {logs.map((log, i) => (
+                        <div key={i} className="text-[10px] mc-text-white break-words whitespace-pre-wrap">
+                            <span className="mc-text-green">[{new Date().toLocaleTimeString()}]</span> {log}
+                        </div>
+                    ))}
+                    <div ref={logsEndRef} />
+                </div>
             </div>
 
-            <form onSubmit={sendCommand} className="p-4 bg-dark-900 border-t border-dark-700 flex gap-2">
+            {/* Command Input */}
+            <form onSubmit={sendCommand} className="mt-2 flex gap-2">
                 <div className="flex-1 relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-mc-green font-bold">{'>'}</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#55ff55] font-bold text-sm z-10">
+                        &gt;
+                    </span>
                     <input
                         type="text"
                         value={command}
                         onChange={(e) => setCommand(e.target.value)}
-                        placeholder="Type a command..."
-                        className="w-full bg-dark-800 text-white rounded-lg pl-8 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-mc-green border border-dark-700 placeholder-gray-600"
+                        placeholder="Type command..."
+                        className="w-full mc-input pl-8 text-[10px]"
                     />
                 </div>
                 <button
                     type="submit"
-                    className="bg-mc-green text-black p-3 rounded-lg hover:bg-[#44cc44] transition-colors"
+                    className="mc-button bg-[#55ff55] text-black px-6 py-3 flex items-center gap-2"
                 >
-                    <Send className="w-5 h-5" />
+                    <Send className="w-4 h-4" />
+                    <span className="text-[10px]">SEND</span>
                 </button>
             </form>
         </div>

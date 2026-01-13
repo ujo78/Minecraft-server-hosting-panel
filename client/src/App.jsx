@@ -35,15 +35,10 @@ function App() {
 
     const handleServerSwitch = (newId) => {
         setActiveServerId(newId);
-        // Refresh status/console by reconnecting socket? 
-        // Socket events are global but backend emits based on current process.
-        // Backend handles switching the process.
-        // We might want to clear console or something, but basic switch is enough.
-        setStatus('offline'); // Assume offline until status update
+        setStatus('offline');
     };
 
     const renderContent = () => {
-        // ... (existing switch)
         switch (activeTab) {
             case 'dashboard': return <Dashboard socket={socket} status={status} />;
             case 'console': return <Console socket={socket} />;
@@ -54,37 +49,90 @@ function App() {
     };
 
     return (
-        <div className="flex h-screen bg-dark-900 text-white overflow-hidden">
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-dark-800 border-r border-dark-700 transition-transform transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
-                <div className="p-6 border-b border-dark-700 flex justify-between items-center">
-                    <h1 className="text-xl font-bold tracking-wider text-mc-green">MC PANEL</h1>
-                    <button onClick={() => setMobileMenuOpen(false)} className="md:hidden">
-                        <Menu className="w-6 h-6" />
+        <div className="flex h-screen overflow-hidden">
+            {/* Minecraft-style Sidebar */}
+            <aside className={`fixed inset-y-0 left-0 z-50 w-64 mc-panel-dark transition-transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
+                {/* Logo Header */}
+                <div className="p-4 border-b-4 border-black bg-[#2a2a2a]">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-[#55ff55] border-2 border-black flex items-center justify-center" style={{
+                            boxShadow: 'inset -1px -1px 0 0 #155515, inset 1px 1px 0 0 #88ff88'
+                        }}>
+                            <span className="text-black font-bold text-xs">M</span>
+                        </div>
+                        <h1 className="text-xs mc-text-green">MC PANEL</h1>
+                    </div>
+                    <button onClick={() => setMobileMenuOpen(false)} className="md:hidden absolute top-4 right-4 text-white">
+                        <Menu className="w-4 h-4" />
                     </button>
                 </div>
-                <nav className="p-4 space-y-2">
-                    <SidebarItem icon={<Settings className="w-5 h-5" />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }} />
-                    <SidebarItem icon={<Terminal className="w-5 h-5" />} label="Console" active={activeTab === 'console'} onClick={() => { setActiveTab('console'); setMobileMenuOpen(false); }} />
-                    <SidebarItem icon={<Users className="w-5 h-5" />} label="Players" active={activeTab === 'players'} onClick={() => { setActiveTab('players'); setMobileMenuOpen(false); }} />
-                    <SidebarItem icon={<HardDrive className="w-5 h-5" />} label="Mods" active={activeTab === 'mods'} onClick={() => { setActiveTab('mods'); setMobileMenuOpen(false); }} />
+
+                {/* Navigation Buttons */}
+                <nav className="p-3 space-y-2">
+                    <NavButton
+                        icon={<Settings className="w-4 h-4" />}
+                        label="Dashboard"
+                        active={activeTab === 'dashboard'}
+                        onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
+                    />
+                    <NavButton
+                        icon={<Terminal className="w-4 h-4" />}
+                        label="Console"
+                        active={activeTab === 'console'}
+                        onClick={() => { setActiveTab('console'); setMobileMenuOpen(false); }}
+                    />
+                    <NavButton
+                        icon={<Users className="w-4 h-4" />}
+                        label="Players"
+                        active={activeTab === 'players'}
+                        onClick={() => { setActiveTab('players'); setMobileMenuOpen(false); }}
+                    />
+                    <NavButton
+                        icon={<HardDrive className="w-4 h-4" />}
+                        label="Mods"
+                        active={activeTab === 'mods'}
+                        onClick={() => { setActiveTab('mods'); setMobileMenuOpen(false); }}
+                    />
                 </nav>
 
-                <div className="absolute bottom-0 w-full p-4 border-t border-dark-700">
-                    <div className="flex items-center space-x-2">
-                        <div className={`w-3 h-3 rounded-full ${status === 'online' ? 'bg-mc-green' : status === 'starting' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                        <span className="capitalize font-medium text-gray-400">{status}</span>
+                {/* Status Footer */}
+                <div className="absolute bottom-0 w-full p-3 border-t-4 border-black bg-[#2a2a2a]">
+                    <div className="mc-panel p-2">
+                        <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 border-2 border-black ${status === 'online' ? 'bg-[#55ff55]' :
+                                    status === 'starting' ? 'bg-[#ffff55]' :
+                                        'bg-[#ff5555]'
+                                }`} style={{
+                                    boxShadow: status === 'online'
+                                        ? 'inset -1px -1px 0 0 #155515, inset 1px 1px 0 0 #88ff88'
+                                        : status === 'starting'
+                                            ? 'inset -1px -1px 0 0 #555515, inset 1px 1px 0 0 #ffff88'
+                                            : 'inset -1px -1px 0 0 #551515, inset 1px 1px 0 0 #ff8888'
+                                }}></div>
+                            <div>
+                                <div className={`text-[8px] font-bold uppercase ${status === 'online' ? 'mc-text-green' :
+                                        status === 'starting' ? 'mc-text-yellow' :
+                                            'mc-text-red'
+                                    }`}>{status}</div>
+                                <div className="text-[6px] mc-text-gray">Server</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </aside>
 
-            <main className="flex-1 flex flex-col h-full relative">
-                <div className="md:hidden p-4 bg-dark-800 border-b border-dark-700 flex justify-between items-center">
-                    <h1 className="text-lg font-bold">MC Panel</h1>
-                    <button onClick={() => setMobileMenuOpen(true)}>
-                        <Menu className="w-6 h-6" />
+            {/* Main Content Area */}
+            <main className="flex-1 flex flex-col h-full relative overflow-hidden">
+                {/* Mobile Header */}
+                <div className="md:hidden mc-panel-dark p-3 border-b-4 border-black flex justify-between items-center">
+                    <h1 className="text-xs mc-text-white">MC Panel</h1>
+                    <button onClick={() => setMobileMenuOpen(true)} className="mc-button bg-[#8b8b8b] text-white px-3 py-2">
+                        <Menu className="w-4 h-4" />
                     </button>
                 </div>
-                <div className="flex-1 overflow-auto p-6">
+
+                {/* Content */}
+                <div className="flex-1 overflow-auto p-4">
                     <ServerSelector
                         activeServerId={activeServerId}
                         onServerSwitch={handleServerSwitch}
@@ -96,10 +144,14 @@ function App() {
     );
 }
 
-const SidebarItem = ({ icon, label, active, onClick }) => (
+// Minecraft-style Navigation Button
+const NavButton = ({ icon, label, active, onClick }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-mc-green text-black font-semibold' : 'text-gray-400 hover:bg-dark-700 hover:text-white'}`}
+        className={`w-full flex items-center gap-2 px-3 py-3 text-[8px] font-bold uppercase mc-button ${active
+                ? 'bg-[#55ff55] text-black'
+                : 'bg-[#8b8b8b] text-white hover:bg-[#a0a0a0]'
+            }`}
     >
         {icon}
         <span>{label}</span>
