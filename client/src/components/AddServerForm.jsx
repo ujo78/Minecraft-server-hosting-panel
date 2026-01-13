@@ -1,14 +1,40 @@
-import React, { useState } from 'react';
-import { Plus, Link, Image, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Server, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function AddServerForm({ onClose, onInstall }) {
     const [formData, setFormData] = useState({
         name: '',
-        downloadUrl: '',
-        iconUrl: ''
+        templateId: ''
     });
+    const [templates, setTemplates] = useState([]);
+    const [loadingTemplates, setLoadingTemplates] = useState(true);
     const [installing, setInstalling] = useState(false);
     const [error, setError] = useState(null);
+
+    useEffect(() => {
+        fetchTemplates();
+    }, []);
+
+    const fetchTemplates = async () => {
+        setLoadingTemplates(true);
+        try {
+            const res = await fetch('/api/available-servers');
+            if (res.ok) {
+                const data = await res.json();
+                setTemplates(data);
+                if (data.length > 0) {
+                    setFormData(prev => ({ ...prev, templateId: data[0].id }));
+                }
+            } else {
+                throw new Error('Failed to load templates');
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Could not availble servers. Ensure backend is running.");
+        } finally {
+            setLoadingTemplates(false);
+        }
+    };
 
     const generateId = (name) => {
         return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -18,13 +44,12 @@ export default function AddServerForm({ onClose, onInstall }) {
         e.preventDefault();
         setError(null);
 
-        // Validation
         if (!formData.name.trim()) {
             setError('Server name is required');
             return;
         }
-        if (!formData.downloadUrl.trim()) {
-            setError('Download URL is required');
+        if (!formData.templateId) {
+            setError('Please select a server template');
             return;
         }
 
@@ -43,8 +68,7 @@ export default function AddServerForm({ onClose, onInstall }) {
                 body: JSON.stringify({
                     id,
                     name: formData.name.trim(),
-                    downloadUrl: formData.downloadUrl.trim(),
-                    iconUrl: formData.iconUrl.trim() || undefined
+                    templateId: formData.templateId
                 })
             });
 
@@ -75,14 +99,14 @@ export default function AddServerForm({ onClose, onInstall }) {
                 <div className="p-6 border-b border-dark-700 flex justify-between items-center">
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
                         <Plus className="w-5 h-5 text-mc-green" />
-                        Add Server Manually
+                        Install New Server
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-white">
                         ✕
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     {error && (
                         <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 flex items-start gap-2">
                             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -98,9 +122,10 @@ export default function AddServerForm({ onClose, onInstall }) {
                             type="text"
                             value={formData.name}
                             onChange={(e) => handleChange('name', e.target.value)}
-                            placeholder="e.g., My Custom Server"
+                            placeholder="e.g., My Survival World"
                             className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mc-green"
                             disabled={installing}
+                            autoFocus
                         />
                         <p className="text-xs text-gray-500 mt-1">
                             ID: {generateId(formData.name) || '(auto-generated)'}
@@ -108,36 +133,64 @@ export default function AddServerForm({ onClose, onInstall }) {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                            <Link className="w-4 h-4" />
-                            Download URL *
+                        <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                                <Server className="w-4 h-4" />
+                                Select Template *
+                            </span>
+                            <button
+                                type="button"
+                                onClick={fetchTemplates}
+                                className="text-xs text-mc-green hover:underline flex items-center gap-1"
+                                disabled={loadingTemplates}
+                            >
+                                <RefreshCw className={`w-3 h-3 ${loadingTemplates ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </button>
                         </label>
-                        <input
-                            type="url"
-                            value={formData.downloadUrl}
-                            onChange={(e) => handleChange('downloadUrl', e.target.value)}
-                            placeholder="https://example.com/serverpack.zip"
-                            className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mc-green"
-                            disabled={installing}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            Direct link to server pack ZIP file
-                        </p>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                            <Image className="w-4 h-4" />
-                            Icon URL (Optional)
-                        </label>
-                        <input
-                            type="url"
-                            value={formData.iconUrl}
-                            onChange={(e) => handleChange('iconUrl', e.target.value)}
-                            placeholder="https://example.com/icon.png"
-                            className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mc-green"
-                            disabled={installing}
-                        />
+                        {loadingTemplates ? (
+                            <div className="w-full h-10 bg-dark-900 animate-pulse rounded-lg"></div>
+                        ) : templates.length === 0 ? (
+                            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 rounded-lg text-sm text-center">
+                                No valid templates found in <code>available-servers/</code>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto pr-2">
+                                {templates.map(template => (
+                                    <div
+                                        key={template.id}
+                                        onClick={() => !installing && handleChange('templateId', template.id)}
+                                        className={`
+                                            cursor-pointer p-4 rounded-xl border transition-all flex items-center gap-4
+                                            ${formData.templateId === template.id
+                                                ? 'bg-mc-green/10 border-mc-green ring-1 ring-mc-green'
+                                                : 'bg-dark-900 border-dark-600 hover:border-dark-500'
+                                            }
+                                        `}
+                                    >
+                                        <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center flex-shrink-0 overflow-hidden border border-dark-700">
+                                            {template.icon ? (
+                                                <img src={template.icon} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Server className="w-5 h-5 text-gray-400" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-white truncate">{template.name || template.id}</div>
+                                            <div className="text-xs text-gray-400 truncate">{template.description}</div>
+                                        </div>
+                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center
+                                            ${formData.templateId === template.id ? 'border-mc-green bg-mc-green' : 'border-gray-600'}
+                                        `}>
+                                            {formData.templateId === template.id && (
+                                                <div className="w-2 h-2 rounded-full bg-black" />
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex gap-3 pt-4">
@@ -151,7 +204,7 @@ export default function AddServerForm({ onClose, onInstall }) {
                         </button>
                         <button
                             type="submit"
-                            disabled={installing}
+                            disabled={installing || !formData.templateId || templates.length === 0}
                             className="flex-1 px-4 py-2 bg-mc-green text-black rounded-lg font-bold hover:bg-green-500 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {installing ? (
@@ -162,7 +215,7 @@ export default function AddServerForm({ onClose, onInstall }) {
                             ) : (
                                 <>
                                     <Plus className="w-4 h-4" />
-                                    Install Server
+                                    Create Server
                                 </>
                             )}
                         </button>

@@ -234,22 +234,29 @@ app.delete('/api/servers/:id', (req, res) => {
     }
 });
 
+app.get('/api/available-servers', (req, res) => {
+    try {
+        const templates = serverManager.getInstallableServers();
+        res.json(templates);
+    } catch (err) {
+        console.error('Failed to list templates:', err);
+        res.status(500).json({ error: 'Failed to list available servers' });
+    }
+});
+
 app.post('/api/servers/install', async (req, res) => {
     try {
-        const { id, name, downloadUrl, iconUrl } = req.body;
+        const { id, name, templateId } = req.body;
 
-        // Validation
-        if (!id || !name || !downloadUrl) {
+        if (!id || !name || !templateId) {
             return res.status(400).json({
-                error: 'Missing required fields: id, name, and downloadUrl are required'
+                error: 'Missing required fields: id, name, and templateId are required'
             });
         }
 
-        console.log(`Install request for: ${name} (ID: ${id})`);
-        console.log(`Download URL: ${downloadUrl}`);
+        console.log(`Install request for: ${name} (ID: ${id}) from template: ${templateId}`);
 
-        // Start installation with direct download URL
-        await serverManager.installServer(id, name, downloadUrl, iconUrl);
+        await serverManager.installServer(id, name, templateId);
 
         res.json({ success: true });
     } catch (err) {

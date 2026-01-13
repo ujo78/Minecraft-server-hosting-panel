@@ -1,98 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 const { spawn } = require('child_process');
-
-// Helper to unzip file (requires 'unzip' on Linux or PowerShell on Windows, but let's use a simple JS unzipper or system command)
-// For Azure VM (Linux), 'unzip' command is best.
-const unzipFile = (zipPath, destPath) => {
-    return new Promise((resolve, reject) => {
-        console.log(`Attempting to unzip: ${zipPath} to ${destPath}`);
-        const unzip = spawn('unzip', ['-o', zipPath, '-d', destPath]);
-
-        let stdout = '';
-        let stderr = '';
-
-        unzip.stdout.on('data', (data) => {
-            stdout += data.toString();
-            console.log('Unzip stdout:', data.toString());
-        });
-
-        unzip.stderr.on('data', (data) => {
-            stderr += data.toString();
-            console.error('Unzip stderr:', data.toString());
-        });
-
-        unzip.on('close', (code) => {
-            console.log(`Unzip process exited with code ${code}`);
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(new Error(`Unzip failed with code ${code}. Stderr: ${stderr}`));
-            }
-        });
-
-        unzip.on('error', (err) => {
-            console.error('Unzip spawn error:', err);
-            reject(err);
-        });
-    });
-};
-
-const downloadFile = (url, destPath) => {
-    return new Promise((resolve, reject) => {
-        console.log(`Starting download from: ${url}`);
-        const file = fs.createWriteStream(destPath);
-
-        const download = (downloadUrl) => {
-            https.get(downloadUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            }, function (response) {
-                console.log(`Response status: ${response.statusCode}`);
-                console.log(`Response headers:`, response.headers);
-
-                // Handle redirects
-                if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307 || response.statusCode === 308) {
-                    const redirectUrl = response.headers.location;
-                    console.log(`Following redirect to: ${redirectUrl}`);
-                    file.close();
-
-                    // Recursively download from redirect - properly chain the promise!
-                    downloadFile(redirectUrl, destPath).then(resolve).catch(reject);
-                    return;
-                }
-
-                if (response.statusCode !== 200) {
-                    file.close();
-                    fs.unlinkSync(destPath);
-                    reject(new Error(`Download failed with status ${response.statusCode}`));
-                    return;
-                }
-
-                response.pipe(file);
-                file.on('finish', function () {
-                    file.close(() => {
-                        console.log(`Download complete: ${destPath}`);
-                        resolve();
-                    });
-                });
-            }).on('error', function (err) {
-                file.close();
-                fs.unlink(destPath, () => { });
-                reject(err);
-            });
-        };
-
-        download(url);
-    });
-};
 
 class ServerManager {
     constructor(configPath) {
         this.configPath = configPath;
         this.config = this.loadConfig();
+        this.availableServersDir = path.resolve(__dirname, '../available-servers');
     }
 
     loadConfig() {
@@ -155,78 +69,146 @@ class ServerManager {
         return false;
     }
 
-    async installServer(id, name, downloadUrl, iconUrl) {
-        // check if exists
-        if (this.getServer(id)) throw new Error("Server ID already exists");
-
-        const serversDir = path.join(__dirname, '..'); // Parent of server/
-        const serverDir = path.join(serversDir, id);
-
-        if (!fs.existsSync(serverDir)) {
-            fs.mkdirSync(serverDir, { recursive: true });
+    getInstallableServers() {
+        if (!fs.existsSync(this.availableServersDir)) {
+            return [];
         }
 
-        const zipPath = path.join(serverDir, 'server_pack.zip');
+        const entries = fs.readdirSync(this.availableServersDir, { withFileTypes: true });
+        const templates = [];
+
+        for (const entry of entries) {
+            if (entry.isDirectory()) {
+                const templateId = entry.name;
+                const templatePath = path.join(this.availableServersDir, templateId);
+                const metadataPath = path.join(templatePath, 'metadata.json');
+
+                let metadata = {
+                    id: templateId,
+                    name: templateId,
+                    description: 'No description provided',
+                    icon: null
+                };
+
+                if (fs.existsSync(metadataPath)) {
+                    try {
+                        const parsed = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+                        metadata = { ...metadata, ...parsed, id: templateId };
+                    } catch (e) {
+                        console.error(`Failed to parse metadata for ${templateId}`, e);
+                    }
+                }
+
+                templates.push(metadata);
+            }
+        }
+        return templates;
+    }
+
+    async installServer(id, name, templateId) {
+        if (this.getServer(id)) throw new Error("Server ID already exists");
+
+        const templatePath = path.join(this.availableServersDir, templateId);
+        if (!fs.existsSync(templatePath)) {
+            throw new Error(`Template '${templateId}' not found in available-servers`);
+        }
+
+        const serversDir = path.resolve(__dirname, '..');
+        const serverDir = path.join(serversDir, id);
+
+        if (fs.existsSync(serverDir)) {
+            throw new Error(`Target directory '${serverDir}' already exists. Please verify.`);
+        }
 
         try {
-            console.log(`Downloading ${name} to ${zipPath}...`);
-            await downloadFile(downloadUrl, zipPath);
+            console.log(`Installing '${name}' from template '${templateId}'...`);
 
-            console.log(`Unzipping...`);
-            await unzipFile(zipPath, serverDir);
+            // 1. Copy files
+            // Check if node version supports fs.cpSync (Node 16.7+). If not, we might need a meaningful error or polyfill.
+            // Assuming modern environment as per instructions.
+            fs.cpSync(templatePath, serverDir, { recursive: true });
+            console.log(`Copied files to ${serverDir}`);
 
-            // Clean up zip
-            fs.unlinkSync(zipPath);
-            // CRITICAL: Detect if this is a client pack (not a server pack)
+            // Remove metadata.json from instance
+            const metaFile = path.join(serverDir, 'metadata.json');
+            if (fs.existsSync(metaFile)) fs.unlinkSync(metaFile);
+
+            // 2. Scan for jar
             const files = fs.readdirSync(serverDir);
-            console.log(`Files in extracted server pack:`, files);
-
-            // Client packs have manifest.json + overrides folder
-            if (files.includes('manifest.json') && files.includes('overrides')) {
-                console.error('Detected client pack (manifest.json + overrides)');
-
-                // Cleanup the extracted files
-                fs.rmSync(serverDir, { recursive: true, force: true });
-
-                throw new Error('Downloaded file is a client pack, not a server pack. Cannot run as a server.');
-            }
-            // Try to find the start script - expanded patterns
-            let jarName = 'run.sh';
+            let jarName = 'server.jar';
 
             const startupPatterns = [
                 'run.sh', 'start.sh', 'startserver.sh', 'ServerStart.sh',
                 'start-server.sh', 'run-server.sh', 'launch.sh',
-                'run.bat', 'start.bat', 'startserver.bat'
+                'run.bat', 'start.bat',
+                'server.jar', 'forge.jar', 'paper.jar', 'spigot.jar'
             ];
 
-            // Check for known patterns first
+            let foundStartup = false;
             for (const pattern of startupPatterns) {
                 if (files.includes(pattern)) {
                     jarName = pattern;
-                    console.log(`Found startup script: ${pattern}`);
+                    foundStartup = true;
                     break;
                 }
             }
-
-            // If no known pattern, search for any .sh or .bat file
-            if (jarName === 'run.sh' && !files.includes('run.sh')) {
-                const script = files.find(f => f.endsWith('.sh') || f.endsWith('.bat'));
-                if (script) {
-                    jarName = script;
-                    console.log(`Found startup script by extension: ${script}`);
-                }
+            if (!foundStartup) {
+                const jar = files.find(f => f.endsWith('.jar'));
+                if (jar) jarName = jar;
             }
 
-            // Accept EULA automatically
+            // 3. Handle install.sh
+            if (files.includes('install.sh')) {
+                console.log('Found install.sh, executing...');
+                const installScript = path.join(serverDir, 'install.sh');
+
+                fs.chmodSync(installScript, '755');
+
+                await new Promise((resolve, reject) => {
+                    // Windows handling for .sh?
+                    // If on windows, we might need bash or just try spawning.
+                    // User OS is windows. but install.sh implies unix tools (git bash/wsl).
+                    // If windows, we should prefer .bat or maybe simple spawn.
+                    // The prompt said "Operating System: windows".
+                    // However, user prompt said "If an install.sh exists, execute it safely"
+                    // If the user is on windows, usually `bash` is invalid unless they have WSL/Git Bash in path.
+                    // I will try `bash` first, but catch error.
+                    // Or maybe check platform.
+
+                    const cmd = process.platform === 'win32' ? 'bash' : './install.sh';
+                    const args = process.platform === 'win32' ? ['install.sh'] : [];
+
+                    const child = spawn('bash', ['install.sh'], {
+                        cwd: serverDir,
+                        stdio: 'inherit',
+                        shell: true
+                    });
+
+                    child.on('close', (code) => {
+                        if (code === 0) resolve();
+                        else reject(new Error(`install.sh failed with code ${code}`));
+                    });
+                    child.on('error', (err) => reject(err));
+                });
+            }
+
+            // 4. EULA
             fs.writeFileSync(path.join(serverDir, 'eula.txt'), 'eula=true');
 
-            // Ensure script is executable (only if file exists)
-            const scriptPath = path.join(serverDir, jarName);
-            if (jarName.endsWith('.sh') && fs.existsSync(scriptPath)) {
-                fs.chmodSync(scriptPath, '755');
-                console.log(`Made ${jarName} executable`);
-            } else if (!fs.existsSync(scriptPath)) {
-                console.warn(`Warning: Startup script ${jarName} not found - this might be a client pack or require manual setup`);
+            // 5. Ensure permissions
+            if (jarName.endsWith('.sh')) {
+                const diffPath = path.join(serverDir, jarName);
+                if (fs.existsSync(diffPath)) fs.chmodSync(diffPath, '755');
+            }
+
+            // Get icon from metadata for the config
+            let iconUrl = null;
+            const originalMeta = path.join(templatePath, 'metadata.json');
+            if (fs.existsSync(originalMeta)) {
+                try {
+                    const meta = JSON.parse(fs.readFileSync(originalMeta, 'utf8'));
+                    iconUrl = meta.icon;
+                } catch (e) { }
             }
 
             this.addServer({
@@ -238,19 +220,17 @@ class ServerManager {
             });
 
             return true;
+
         } catch (err) {
             console.error("Install failed:", err);
-
-            // Cleanup on failure - remove the server directory
             try {
-                if (fs.existsSync(serverDir)) {
-                    console.log(`Cleaning up failed installation: ${serverDir}`);
+                if (fs.existsSync(serverDir) && serverDir.includes(id)) {
+                    console.log(`Cleaning up: ${serverDir}`);
                     fs.rmSync(serverDir, { recursive: true, force: true });
                 }
             } catch (cleanupErr) {
                 console.error('Cleanup failed:', cleanupErr);
             }
-
             throw err;
         }
     }
