@@ -2,8 +2,221 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Minecraft Pixelated Font */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 html, body {
-  background-color: #121212;
-  color: #e0e0e0;
-  font-family: 'Inter', sans-serif;
+  /* Minecraft dirt/stone texture background */
+  background: 
+    repeating-linear-gradient(
+      0deg,
+      #2a2a2a 0px,
+      #2a2a2a 4px,
+      #252525 4px,
+      #252525 8px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      #2a2a2a 0px,
+      #2a2a2a 4px,
+      #252525 4px,
+      #252525 8px
+    );
+  background-size: 8px 8px;
+  color: #ffffff;
+  font-family: 'Press Start 2P', monospace;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  overflow-x: hidden;
+}
+
+/* Minecraft-style Scrollbar */
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border: 2px solid #000;
+  box-shadow: inset 0 0 0 2px #3a3a3a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8b8b8b;
+  border: 2px solid #000;
+  box-shadow: 
+    inset 2px 2px 0 0 #c6c6c6,
+    inset -2px -2px 0 0 #555555;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+/* Minecraft Button Base */
+.mc-button {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 12px 24px;
+  border: none;
+  position: relative;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.1s;
+  image-rendering: pixelated;
+  
+  /* 3D Button Effect */
+  box-shadow: 
+    inset -2px -4px 0 0 rgba(0, 0, 0, 0.3),
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.3);
+}
+
+.mc-button:hover {
+  filter: brightness(1.2);
+}
+
+.mc-button:active {
+  box-shadow: 
+    inset 2px 4px 0 0 rgba(0, 0, 0, 0.3),
+    inset -2px -2px 0 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(2px);
+}
+
+.mc-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+/* Minecraft Panel/Card */
+.mc-panel {
+  background: #c6c6c6;
+  border: 4px solid #000;
+  box-shadow: 
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.4),
+    inset -2px -2px 0 0 rgba(0, 0, 0, 0.4),
+    4px 4px 0 0 rgba(0, 0, 0, 0.3);
+  image-rendering: pixelated;
+}
+
+.mc-panel-dark {
+  background: #3a3a3a;
+  border: 4px solid #000;
+  box-shadow: 
+    inset 2px 2px 0 0 rgba(255, 255, 255, 0.1),
+    inset -2px -2px 0 0 rgba(0, 0, 0, 0.5),
+    4px 4px 0 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Minecraft Input */
+.mc-input {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  background: #000;
+  color: #fff;
+  border: 2px solid #3a3a3a;
+  padding: 12px;
+  box-shadow: 
+    inset 2px 2px 0 0 rgba(0, 0, 0, 0.5);
+}
+
+.mc-input:focus {
+  outline: none;
+  border-color: #55ff55;
+  box-shadow: 
+    inset 2px 2px 0 0 rgba(0, 0, 0, 0.5),
+    0 0 0 2px #55ff55;
+}
+
+/* Minecraft Text Colors */
+.mc-text-green {
+  color: #55ff55;
+  text-shadow: 2px 2px 0 #155515;
+}
+
+.mc-text-red {
+  color: #ff5555;
+  text-shadow: 2px 2px 0 #551515;
+}
+
+.mc-text-yellow {
+  color: #ffff55;
+  text-shadow: 2px 2px 0 #555515;
+}
+
+.mc-text-white {
+  color: #ffffff;
+  text-shadow: 2px 2px 0 #3f3f3f;
+}
+
+.mc-text-gray {
+  color: #aaaaaa;
+  text-shadow: 2px 2px 0 #2a2a2a;
+}
+
+/* Pixelated Border */
+.pixel-border {
+  position: relative;
+}
+
+.pixel-border::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  background: 
+    linear-gradient(0deg, #000 2px, transparent 2px),
+    linear-gradient(90deg, #000 2px, transparent 2px);
+  background-size: 4px 4px;
+  pointer-events: none;
+}
+
+/* Selection */
+::selection {
+  background: #55ff55;
+  color: #000;
+  text-shadow: none;
+}
+
+::-moz-selection {
+  background: #55ff55;
+  color: #000;
+  text-shadow: none;
+}
+
+/* Animations */
+@keyframes pixelFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pixelSlide {
+  from {
+    transform: translateX(-8px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.pixel-fade-in {
+  animation: pixelFadeIn 0.2s steps(4);
+}
+
+.pixel-slide {
+  animation: pixelSlide 0.2s steps(8);
 }
