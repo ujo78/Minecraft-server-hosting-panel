@@ -208,12 +208,25 @@ app.post('/api/servers/switch', async (req, res) => {
     }
 
     if (serverManager.setActiveServer(id)) {
-        reloadMinecraftHandler();
+        // Reload the active server variables
+        const activeServer = serverManager.getActiveServer();
+        SERVER_DIR = path.resolve(__dirname, activeServer.path);
+        JAR_NAME = activeServer.jar;
 
-        // Create new instance
-        // Remove old listeners? simple overwrite for now
-        mc = new MinecraftHandler(path.join(SERVER_DIR, JAR_NAME), SERVER_DIR);
-        setupMcListeners(mc);
+        // Reinitialize MinecraftHandler with correct parameters
+        mc.removeAllListeners(); // Clean up old listeners
+        Object.assign(mc, new MinecraftHandler(JAR_NAME, SERVER_DIR));
+
+        // Re-attach event listeners
+        mc.on('console', (data) => {
+            io.emit('console', data);
+        });
+        mc.on('status', (status) => {
+            io.emit('status', status);
+        });
+        mc.on('players', (players) => {
+            io.emit('players', players);
+        });
 
         res.json({ success: true, activeId: id });
     } else {
