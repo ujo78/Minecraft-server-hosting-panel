@@ -11,9 +11,44 @@ class ServerManager {
 
     loadConfig() {
         if (!fs.existsSync(this.configPath)) {
-            return { active: null, servers: [] };
+            return {
+                active: null,
+                portRange: { start: 25565, end: 25665 },
+                servers: []
+            };
         }
-        return JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
+        const config = JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
+
+        // Migration: Add port range if missing
+        if (!config.portRange) {
+            config.portRange = { start: 25565, end: 25665 };
+        }
+
+        // Migration: Add memory, port, status to existing servers
+        let needsSave = false;
+        if (config.servers) {
+            config.servers.forEach((server, index) => {
+                if (server.memory === undefined) {
+                    server.memory = 1024;
+                    needsSave = true;
+                }
+                if (server.port === undefined) {
+                    server.port = 25565 + index;
+                    needsSave = true;
+                }
+                if (server.status === undefined) {
+                    server.status = 'offline';
+                    needsSave = true;
+                }
+            });
+        }
+
+        if (needsSave) {
+            fs.writeFileSync(this.configPath, JSON.stringify(config, null, 4));
+            console.log('✅ Config migrated to new schema with memory/port/status fields');
+        }
+
+        return config;
     }
 
     saveConfig() {
@@ -43,14 +78,23 @@ class ServerManager {
     }
 
     addServer(serverData) {
-        // serverData: { id, name, path, jar, icon }
+        // serverData: { id, name, path, jar, icon, memory, port }
         if (this.getServer(serverData.id)) {
             return false;
         }
-        this.config.servers.push(serverData);
+
+        // Ensure required fields have defaults
+        const server = {
+            ...serverData,
+            memory: serverData.memory || 1024,
+            port: serverData.port || this.findAvailablePort(),
+            status: 'offline'
+        };
+
+        this.config.servers.push(server);
         // If it's the first server, make it active
         if (!this.config.active) {
-            this.config.active = serverData.id;
+            this.config.active = server.id;
         }
         this.saveConfig();
         return true;
@@ -59,11 +103,13 @@ class ServerManager {
     deleteServer(id) {
         const index = this.config.servers.findIndex(s => s.id === id);
         if (index !== -1) {
+            const server = this.config.servers[index];
             this.config.servers.splice(index, 1);
             if (this.config.active === id) {
                 this.config.active = this.config.servers.length > 0 ? this.config.servers[0].id : null;
             }
             this.saveConfig();
+            console.log(`✅ Port ${server.port} released from server ${id}`);
             return true;
         }
         return false;
@@ -105,7 +151,35 @@ class ServerManager {
         return templates;
     }
 
-    async installServer(id, name, templateId) {
+    findAvailablePort() {
+        const range = this.config.portRange || { start: 25565, end: 25665 };
+        const usedPorts = new Set(this.config.servers.map(s => s.port));
+
+        for (let port = range.start; port <= range.end; port++) {
+            if (!usedPorts.has(port)) {
+                return port;
+            }
+        }
+
+        // Fallback: if all ports used, return a random one in range
+        return range.start + Math.floor(Math.random() * (range.end - range.start + 1));
+    }
+
+    updateServerStatus(id, status) {
+        const server = this.getServer(id);
+        if (server) {
+            server.status = status;
+            this.saveConfig();
+            return true;
+        }
+        return false;
+    }
+
+    getServerByPort(port) {
+        return this.config.servers.find(s => s.port === port);
+    }
+
+    async installServer(id, name, templateId, memory = 2048) {
         if (this.getServer(id)) throw new Error("Server ID already exists");
 
         const templatePath = path.join(this.availableServersDir, templateId);
@@ -195,7 +269,25 @@ class ServerManager {
             // 4. EULA
             fs.writeFileSync(path.join(serverDir, 'eula.txt'), 'eula=true');
 
-            // 5. Ensure permissions
+            // 5. Assign port and update server.properties
+            const assignedPort = this.findAvailablePort();
+            const propertiesPath = path.join(serverDir, 'server.properties');
+
+            if (fs.existsSync(propertiesPath)) {
+                let properties = fs.readFileSync(propertiesPath, 'utf8');
+                if (properties.includes('server-port=')) {
+                    properties = properties.replace(/server-port=\d+/, `server-port=${assignedPort}`);
+                } else {
+                    properties = `server-port=${assignedPort}\n` + properties;
+                }
+                fs.writeFileSync(propertiesPath, properties);
+            } else {
+                // Create minimal server.properties
+                fs.writeFileSync(propertiesPath, `server-port=${assignedPort}\n`);
+            }
+            console.log(`✅ Assigned port ${assignedPort} to server ${id}`);
+
+            // 6. Ensure permissions
             if (jarName.endsWith('.sh')) {
                 const diffPath = path.join(serverDir, jarName);
                 if (fs.existsSync(diffPath)) fs.chmodSync(diffPath, '755');
@@ -216,7 +308,9 @@ class ServerManager {
                 name,
                 path: `../${id}`,
                 jar: jarName,
-                icon: iconUrl
+                icon: iconUrl,
+                memory: memory,
+                port: assignedPort
             });
 
             return true;

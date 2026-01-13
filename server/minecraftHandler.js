@@ -3,10 +3,12 @@ const EventEmitter = require('events');
 const path = require('path');
 
 class MinecraftHandler extends EventEmitter {
-    constructor(serverJarPath, serverDir) {
+    constructor(serverJarPath, serverDir, options = {}) {
         super();
         this.serverJarPath = serverJarPath;
         this.serverDir = serverDir;
+        this.memory = options.memory || 1024; // Configurable memory in MB
+        this.port = options.port || 25565;     // For logging/tracking
         this.process = null;
         this.status = 'offline';
         this.players = new Map();
@@ -29,7 +31,13 @@ class MinecraftHandler extends EventEmitter {
             args = [scriptName];
         } else {
             cmd = 'java';
-            args = ['-Xmx1024M', '-Xms1024M', '-jar', this.serverJarPath, 'nogui'];
+            args = [
+                `-Xmx${this.memory}M`,  // Dynamic max memory
+                `-Xms${this.memory}M`,  // Dynamic min memory
+                '-jar',
+                this.serverJarPath,
+                'nogui'
+            ];
         }
 
         this.process = spawn(cmd, args, {
@@ -55,7 +63,15 @@ class MinecraftHandler extends EventEmitter {
 
         this.process.on('close', (code) => {
             console.log(`Minecraft server process exited with code ${code}`);
-            this.status = 'offline';
+
+            // Detect crashes vs normal shutdown
+            if (code !== 0 && this.status !== 'stopping') {
+                this.status = 'crashed';
+                this.emit('console', `[ERROR] Server crashed with exit code ${code}\n`);
+            } else {
+                this.status = 'offline';
+            }
+
             this.process = null;
             this.emit('status', this.status);
             this.emit('console', `Server process exited with code ${code}\n`);

@@ -116,11 +116,23 @@ export default function ServerSelector({ activeServerId, onServerSwitch }) {
                                     <h3 className={`font-bold truncate ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
                                         {server.name}
                                     </h3>
-                                    <div className="flex items-center gap-2 text-xs">
+                                    <div className="flex items-center gap-2 text-xs mt-1">
+                                        <span className={`${isActive ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            {server.memory ? `${(server.memory / 1024).toFixed(1)}GB` : '1.0GB'}
+                                        </span>
+                                        <span className="text-gray-700">•</span>
+                                        <span className={`${isActive ? 'text-gray-400' : 'text-gray-600'}`}>
+                                            Port {server.port || 25565}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs mt-1">
                                         {isActive ? (
                                             <span className="text-mc-green flex items-center gap-1">
                                                 <div className="w-2 h-2 rounded-full bg-mc-green animate-pulse" />
-                                                Active
+                                                {server.status === 'online' ? 'Online' :
+                                                    server.status === 'starting' ? 'Starting...' :
+                                                        server.status === 'stopping' ? 'Stopping...' :
+                                                            server.status === 'crashed' ? '⚠️ Crashed' : 'Active'}
                                             </span>
                                         ) : (
                                             <span className="text-gray-600 group-hover:text-gray-500">Click to play</span>

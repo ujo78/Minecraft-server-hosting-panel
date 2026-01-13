@@ -4,7 +4,8 @@ import { Plus, Server, AlertCircle, RefreshCw } from 'lucide-react';
 export default function AddServerForm({ onClose, onInstall }) {
     const [formData, setFormData] = useState({
         name: '',
-        templateId: ''
+        templateId: '',
+        memory: 2048  // Default 2GB RAM
     });
     const [templates, setTemplates] = useState([]);
     const [loadingTemplates, setLoadingTemplates] = useState(true);
@@ -68,7 +69,8 @@ export default function AddServerForm({ onClose, onInstall }) {
                 body: JSON.stringify({
                     id,
                     name: formData.name.trim(),
-                    templateId: formData.templateId
+                    templateId: formData.templateId,
+                    memory: formData.memory
                 })
             });
 
@@ -129,6 +131,32 @@ export default function AddServerForm({ onClose, onInstall }) {
                         />
                         <p className="text-xs text-gray-500 mt-1">
                             ID: {generateId(formData.name) || '(auto-generated)'}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Memory Allocation
+                        </label>
+                        <input
+                            type="range"
+                            min="512"
+                            max="8192"
+                            step="512"
+                            value={formData.memory}
+                            onChange={(e) => handleChange('memory', parseInt(e.target.value))}
+                            className="w-full h-2 bg-dark-700 rounded-lg appearance-none cursor-pointer accent-mc-green"
+                            disabled={installing}
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>512 MB</span>
+                            <span className="text-mc-green font-bold text-sm">
+                                {formData.memory} MB ({(formData.memory / 1024).toFixed(1)} GB)
+                            </span>
+                            <span>8 GB</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            💡 Recommended: 2GB for vanilla, 4GB+ for modpacks
                         </p>
                     </div>
 

@@ -43,14 +43,27 @@ if (!fs.existsSync(SERVER_DIR)) {
 // Function to reload MC handler when switching servers
 const reloadMinecraftHandler = () => {
     activeServer = serverManager.getActiveServer();
+    if (!activeServer) return null;
+
     SERVER_DIR = path.resolve(__dirname, activeServer.path);
     JAR_NAME = activeServer.jar;
 
-    // We'll re-instantiate, but we need to handle the old listeners?
-    // Actually, simple way: we just create a new one.
-    // Ideally we should CLEANUP listeners from old 'mc' if we reuse variable
-    // But index.js attaches listeners to 'mc' right after creation.
-    // We should enable wrapping this logic.
+    const instance = new MinecraftHandler(
+        JAR_NAME,
+        SERVER_DIR,
+        {
+            memory: activeServer.memory || 1024,
+            port: activeServer.port || 25565
+        }
+    );
+
+    // Listen for status changes and update config
+    instance.on('status', (status) => {
+        serverManager.updateServerStatus(activeServer.id, status);
+        io.emit('serverStatus', { id: activeServer.id, status });
+    });
+
+    return instance;
 };
 
 if (!fs.existsSync(SERVER_DIR)) {
@@ -71,7 +84,14 @@ const modsStorage = multer.diskStorage({
 });
 const upload = multer({ storage: modsStorage });
 
-const mc = new MinecraftHandler(JAR_NAME, SERVER_DIR);
+const mc = new MinecraftHandler(
+    JAR_NAME,
+    SERVER_DIR,
+    {
+        memory: activeServer.memory || 1024,
+        port: activeServer.port || 25565
+    }
+);
 const playerDataParser = new PlayerDataParser(SERVER_DIR);
 
 io.on('connection', (socket) => {
@@ -88,7 +108,9 @@ mc.on('console', (data) => {
 });
 
 mc.on('status', (status) => {
+    serverManager.updateServerStatus(activeServer.id, status);
     io.emit('status', status);
+    io.emit('serverStatus', { id: activeServer.id, status });
 });
 
 mc.on('players', (players) => {
@@ -209,25 +231,36 @@ app.post('/api/servers/switch', async (req, res) => {
 
     if (serverManager.setActiveServer(id)) {
         // Reload the active server variables
-        const activeServer = serverManager.getActiveServer();
-        SERVER_DIR = path.resolve(__dirname, activeServer.path);
-        JAR_NAME = activeServer.jar;
+        const newActiveServer = serverManager.getActiveServer();
+        SERVER_DIR = path.resolve(__dirname, newActiveServer.path);
+        JAR_NAME = newActiveServer.jar;
 
         // Reinitialize MinecraftHandler with correct parameters
         mc.removeAllListeners(); // Clean up old listeners
-        Object.assign(mc, new MinecraftHandler(JAR_NAME, SERVER_DIR));
+        const newInstance = new MinecraftHandler(
+            JAR_NAME,
+            SERVER_DIR,
+            {
+                memory: newActiveServer.memory || 1024,
+                port: newActiveServer.port || 25565
+            }
+        );
+        Object.assign(mc, newInstance);
 
         // Re-attach event listeners
         mc.on('console', (data) => {
             io.emit('console', data);
         });
         mc.on('status', (status) => {
+            serverManager.updateServerStatus(id, status);
             io.emit('status', status);
+            io.emit('serverStatus', { id, status });
         });
         mc.on('players', (players) => {
             io.emit('players', players);
         });
 
+        activeServer = newActiveServer;
         res.json({ success: true, activeId: id });
     } else {
         res.status(404).json({ error: 'Server not found' });
@@ -259,7 +292,7 @@ app.get('/api/available-servers', (req, res) => {
 
 app.post('/api/servers/install', async (req, res) => {
     try {
-        const { id, name, templateId } = req.body;
+        const { id, name, templateId, memory } = req.body;
 
         if (!id || !name || !templateId) {
             return res.status(400).json({
@@ -267,9 +300,17 @@ app.post('/api/servers/install', async (req, res) => {
             });
         }
 
-        console.log(`Install request for: ${name} (ID: ${id}) from template: ${templateId}`);
+        // Validate memory allocation
+        let allocatedMemory = memory || 2048; // Default 2GB
+        if (typeof allocatedMemory !== 'number' || allocatedMemory < 512 || allocatedMemory > 8192) {
+            return res.status(400).json({
+                error: 'Invalid memory allocation. Must be between 512 and 8192 MB'
+            });
+        }
 
-        await serverManager.installServer(id, name, templateId);
+        console.log(`Install request for: ${name} (ID: ${id}) from template: ${templateId} with ${allocatedMemory}MB RAM`);
+
+        await serverManager.installServer(id, name, templateId, allocatedMemory);
 
         res.json({ success: true });
     } catch (err) {
