@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { Terminal, HardDrive, Play, Square, Settings, Menu, Users, BarChart2, Package, Save, FileText, List } from 'lucide-react';
+import { Terminal, HardDrive, Play, Square, Settings, Menu, Users, BarChart2, Package, Save, FileText, List, LogOut } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Console from './components/Console';
 import ModManager from './components/ModManager';
@@ -13,16 +13,40 @@ import BackupManager from './components/BackupManager';
 import PropertiesEditor from './components/PropertiesEditor';
 import WhitelistManager from './components/WhitelistManager';
 import FileBrowser from './components/FileBrowser';
+import Login from './components/Login';
 
-const socket = io();
+const socket = io({
+    withCredentials: true // Important for cookies!
+});
 
 function App() {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('offline');
     const [activeTab, setActiveTab] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [activeServerId, setActiveServerId] = useState(null);
 
+    // Initial Auth Check
     useEffect(() => {
+        fetch('/api/auth/me')
+            .then(res => {
+                if (res.ok) return res.json();
+                throw new Error('Not authenticated');
+            })
+            .then(data => {
+                setUser(data.user);
+                setLoading(false);
+            })
+            .catch(() => {
+                setUser(null);
+                setLoading(false);
+            });
+    }, []);
+
+    useEffect(() => {
+        if (!user) return; // Don't fetch if not logged in
+
         // Fetch initial active server
         fetch('/api/servers')
             .then(res => res.json())
@@ -35,19 +59,43 @@ function App() {
             setStatus(newStatus);
         });
 
+        // Handle unauthorized socket event
+        socket.on('connect_error', (err) => {
+            console.log("Socket connection error", err);
+        });
+
         return () => {
             socket.off('status');
+            socket.off('connect_error');
         };
-    }, []);
+    }, [user]); // Re-run when user logs in
 
     const handleServerSwitch = (newId) => {
         setActiveServerId(newId);
-        // Refresh status/console by reconnecting socket? 
-        // Socket events are global but backend emits based on current process.
-        // Backend handles switching the process.
-        // We might want to clear console or something, but basic switch is enough.
-        setStatus('offline'); // Assume offline until status update
+        setStatus('offline');
     };
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            setUser(null);
+            setActiveTab('dashboard'); // Reset tab
+        } catch (err) {
+            console.error("Logout failed", err);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-dark-900 text-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-mc-green"></div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return <Login onLogin={setUser} />;
+    }
 
     const renderContent = () => {
         switch (activeTab) {
@@ -55,7 +103,7 @@ function App() {
             case 'console': return <Console socket={socket} />;
             case 'metrics': return <MetricsDashboard serverId={activeServerId} />;
             case 'players': return <Players socket={socket} />;
-            case 'mods': return <ModManager serverId={activeServerId} />; // Pass serverId!
+            case 'mods': return <ModManager serverId={activeServerId} />;
             case 'plugins': return <PluginManager serverId={activeServerId} />;
             case 'files': return <FileBrowser serverId={activeServerId} />;
             case 'resources': return <ResourceMonitor serverId={activeServerId} />;
@@ -68,13 +116,18 @@ function App() {
 
     return (
         <div className="flex h-screen bg-dark-900 text-white overflow-hidden">
-            <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-dark-800 border-r border-dark-700 transition-transform transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
+            <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-dark-800 border-r border-dark-700 transition-transform transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static flex flex-col`}>
                 <div className="p-6 border-b border-dark-700 flex justify-between items-center">
                     <h1 className="text-xl font-bold tracking-wider text-mc-green">MC PANEL</h1>
                     <button onClick={() => setMobileMenuOpen(false)} className="md:hidden">
                         <Menu className="w-6 h-6" />
                     </button>
                 </div>
+
+                <div className="px-6 py-2">
+                    <p className="text-xs text-gray-500">Logged in as {user.username}</p>
+                </div>
+
                 <nav className="p-4 space-y-1 overflow-y-auto flex-1 custom-scrollbar">
                     <SidebarItem icon={<Settings className="w-5 h-5" />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }} />
                     <SidebarItem icon={<Terminal className="w-5 h-5" />} label="Console" active={activeTab === 'console'} onClick={() => { setActiveTab('console'); setMobileMenuOpen(false); }} />
@@ -97,26 +150,34 @@ function App() {
                     <SidebarItem icon={<Settings className="w-5 h-5" />} label="Properties" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setMobileMenuOpen(false); }} />
                 </nav>
 
-                <div className="absolute bottom-0 w-full p-4 border-t border-dark-700">
-                    <div className="flex items-center space-x-2">
-                        <div className={`w-3 h-3 rounded-full ${status === 'online' ? 'bg-mc-green' : status === 'starting' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                        <span className="capitalize font-medium text-gray-400">{status}</span>
+                <div className="p-4 border-t border-dark-700">
+                    <div className="mb-4">
+                        <ServerSelector
+                            activeServerId={activeServerId}
+                            onServerSwitch={handleServerSwitch}
+                        />
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-center space-x-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white p-2 rounded-md transition-colors"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                    </button>
                 </div>
             </aside>
 
-            <main className="flex-1 flex flex-col h-full relative">
+            <main className="flex-1 overflow-x-hidden overflow-y-auto bg-dark-900">
                 <div className="md:hidden p-4 bg-dark-800 border-b border-dark-700 flex justify-between items-center">
-                    <h1 className="text-lg font-bold">MC Panel</h1>
+                    <h1 className="text-lg font-bold text-white">
+                        {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                    </h1>
                     <button onClick={() => setMobileMenuOpen(true)}>
-                        <Menu className="w-6 h-6" />
+                        <Menu className="w-6 h-6 text-gray-400" />
                     </button>
                 </div>
-                <div className="flex-1 overflow-auto p-6">
-                    <ServerSelector
-                        activeServerId={activeServerId}
-                        onServerSwitch={handleServerSwitch}
-                    />
+
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {renderContent()}
                 </div>
             </main>
@@ -124,14 +185,19 @@ function App() {
     );
 }
 
-const SidebarItem = ({ icon, label, active, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-mc-green text-black font-semibold' : 'text-gray-400 hover:bg-dark-700 hover:text-white'}`}
-    >
-        {icon}
-        <span>{label}</span>
-    </button>
-);
+function SidebarItem({ icon, label, active, onClick }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-md transition-colors ${active
+                    ? 'bg-gradient-to-r from-mc-green/20 to-transparent text-mc-green border-r-2 border-mc-green'
+                    : 'text-gray-400 hover:bg-dark-700 hover:text-white'
+                }`}
+        >
+            {icon}
+            <span className="font-medium text-sm">{label}</span>
+        </button>
+    );
+}
 
 export default App;

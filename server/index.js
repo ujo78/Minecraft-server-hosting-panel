@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -5,8 +6,16 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
+const passport = require('passport');
+const cookieParser = require('cookie-parser');
+
 const MinecraftHandler = require('./minecraftHandler');
 const PlayerDataParser = require('./playerDataParser');
+const AuthManager = require('./authManager');
+const verifyToken = require('./middleware/auth');
+
+// Passport Config
+require('./passport-setup')(passport);
 
 const app = express();
 const server = http.createServer(app);
@@ -17,8 +26,10 @@ const io = new Server(server, {
     }
 });
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true })); // Enable credentials for cookies
 app.use(express.json());
+app.use(cookieParser());
+app.use(passport.initialize());
 
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
@@ -32,6 +43,80 @@ const ResourceTracker = require('./resourceTracker');
 const serverManager = new ServerManager(path.join(__dirname, 'config.json'));
 const backupManager = new BackupManager(path.join(__dirname, '../backups'));
 const modSearcher = new ModSearcher();
+const authManager = new AuthManager(path.join(__dirname, 'users.json'));
+
+// --- AUTH ROUTES (Public) ---
+
+// Local Login
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const token = await authManager.login(username, password);
+        if (token) {
+            res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // 24h
+            res.json({ success: true, token });
+        } else {
+            res.status(401).json({ error: 'Invalid credentials' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Setup (First User)
+app.post('/api/auth/setup', async (req, res) => {
+    try {
+        if (authManager.hasUsers()) {
+            return res.status(403).json({ error: 'Setup already completed' });
+        }
+        const { username, password } = req.body;
+        const token = await authManager.register(username, password, true); // isAdmin = true
+        res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+        res.json({ success: true, token });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Check Auth Status (for frontend)
+app.get('/api/auth/me', verifyToken, (req, res) => {
+    res.json({ user: req.user });
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('token');
+    res.json({ success: true });
+});
+
+// Google OAuth
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback',
+    passport.authenticate('google', { session: false, failureRedirect: '/login?error=auth_failed' }),
+    (req, res) => {
+        // Successful authentication
+        const token = authManager.generateToken(req.user);
+        res.cookie('token', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+        // Redirect to frontend
+        res.redirect('/');
+    }
+);
+
+// --- PROTECTED ROUTES BELOW ---
+// Apply middleware to all /api routes EXCEPT the ones defined above
+// We can use a router or regex, but here's a simple way:
+app.use('/api', (req, res, next) => {
+    // Skip auth for login/setup/public paths if any matched above (but express matches in order, so we need to be careful)
+    // Actually, since we defined the routes above, they are already handled.
+    // We just need to protect "everything else" under /api.
+
+    // List of public paths under /api that we already handled (express handles exact matches first usually, but `app.use` is broad)
+    // To be safe, we should put this middleware AFTER the specific routes.
+    // The previous routes used `app.post`, which take precedence if they match.
+    // So this generic `app.use` will catch the rest.
+    verifyToken(req, res, next);
+});
 
 // Metrics collector will be initialized per server/handler
 let metricsCollector = null;
