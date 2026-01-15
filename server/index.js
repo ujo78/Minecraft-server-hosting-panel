@@ -18,6 +18,8 @@ const verifyToken = require('./middleware/auth');
 require('./passport-setup')(passport);
 
 const app = express();
+app.enable('trust proxy'); // Required for Nginx reverse proxy (HTTPS)
+
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
