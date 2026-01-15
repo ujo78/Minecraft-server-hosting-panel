@@ -1010,8 +1010,17 @@ app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, () => {
     console.log(`Control Panel Server running on port ${PORT}`);
     console.log(`Minecraft Directory: ${SERVER_DIR}`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`UNKNOWN ERROR: Port ${PORT} is already in use.`);
+        console.error(`Please run 'kill -9 <PID>' on the process using port ${PORT} or change the port.`);
+        process.exit(1);
+    } else {
+        console.error(err);
+    }
 });
