@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { Terminal, HardDrive, Play, Square, Settings, Menu, Users } from 'lucide-react';
+import { Terminal, HardDrive, Play, Square, Settings, Menu, Users, BarChart2, Package, Save, FileText, List } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Console from './components/Console';
 import ModManager from './components/ModManager';
 import Players from './components/Players';
 import ServerSelector from './components/ServerSelector';
+import MetricsDashboard from './components/MetricsDashboard';
+import PluginManager from './components/PluginManager';
+import ResourceMonitor from './components/ResourceMonitor';
+import BackupManager from './components/BackupManager';
+import PropertiesEditor from './components/PropertiesEditor';
+import WhitelistManager from './components/WhitelistManager';
+import FileBrowser from './components/FileBrowser';
 
 const socket = io();
 
@@ -43,12 +50,18 @@ function App() {
     };
 
     const renderContent = () => {
-        // ... (existing switch)
         switch (activeTab) {
             case 'dashboard': return <Dashboard socket={socket} status={status} />;
             case 'console': return <Console socket={socket} />;
+            case 'metrics': return <MetricsDashboard serverId={activeServerId} />;
             case 'players': return <Players socket={socket} />;
-            case 'mods': return <ModManager />;
+            case 'mods': return <ModManager serverId={activeServerId} />; // Pass serverId!
+            case 'plugins': return <PluginManager serverId={activeServerId} />;
+            case 'files': return <FileBrowser serverId={activeServerId} />;
+            case 'resources': return <ResourceMonitor serverId={activeServerId} />;
+            case 'backups': return <BackupManager serverId={activeServerId} />;
+            case 'whitelist': return <WhitelistManager serverId={activeServerId} />;
+            case 'settings': return <PropertiesEditor serverId={activeServerId} />;
             default: return <Dashboard socket={socket} status={status} />;
         }
     };
@@ -62,11 +75,26 @@ function App() {
                         <Menu className="w-6 h-6" />
                     </button>
                 </div>
-                <nav className="p-4 space-y-2">
+                <nav className="p-4 space-y-1 overflow-y-auto flex-1 custom-scrollbar">
                     <SidebarItem icon={<Settings className="w-5 h-5" />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }} />
                     <SidebarItem icon={<Terminal className="w-5 h-5" />} label="Console" active={activeTab === 'console'} onClick={() => { setActiveTab('console'); setMobileMenuOpen(false); }} />
+                    <SidebarItem icon={<BarChart2 className="w-5 h-5" />} label="Metrics" active={activeTab === 'metrics'} onClick={() => { setActiveTab('metrics'); setMobileMenuOpen(false); }} />
                     <SidebarItem icon={<Users className="w-5 h-5" />} label="Players" active={activeTab === 'players'} onClick={() => { setActiveTab('players'); setMobileMenuOpen(false); }} />
+
+                    <div className="pt-4 pb-1">
+                        <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Content</p>
+                    </div>
                     <SidebarItem icon={<HardDrive className="w-5 h-5" />} label="Mods" active={activeTab === 'mods'} onClick={() => { setActiveTab('mods'); setMobileMenuOpen(false); }} />
+                    <SidebarItem icon={<Package className="w-5 h-5" />} label="Plugins" active={activeTab === 'plugins'} onClick={() => { setActiveTab('plugins'); setMobileMenuOpen(false); }} />
+                    <SidebarItem icon={<FileText className="w-5 h-5" />} label="Files" active={activeTab === 'files'} onClick={() => { setActiveTab('files'); setMobileMenuOpen(false); }} />
+
+                    <div className="pt-4 pb-1">
+                        <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">System</p>
+                    </div>
+                    <SidebarItem icon={<BarChart2 className="w-5 h-5" />} label="Resources" active={activeTab === 'resources'} onClick={() => { setActiveTab('resources'); setMobileMenuOpen(false); }} />
+                    <SidebarItem icon={<Save className="w-5 h-5" />} label="Backups" active={activeTab === 'backups'} onClick={() => { setActiveTab('backups'); setMobileMenuOpen(false); }} />
+                    <SidebarItem icon={<List className="w-5 h-5" />} label="Whitelist" active={activeTab === 'whitelist'} onClick={() => { setActiveTab('whitelist'); setMobileMenuOpen(false); }} />
+                    <SidebarItem icon={<Settings className="w-5 h-5" />} label="Properties" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setMobileMenuOpen(false); }} />
                 </nav>
 
                 <div className="absolute bottom-0 w-full p-4 border-t border-dark-700">
