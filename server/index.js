@@ -24,8 +24,17 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 
 const ServerManager = require('./serverManager');
 const BackupManager = require('./backupManager');
+const MetricsCollector = require('./metricsCollector');
+const ModSearcher = require('./modSearcher');
+const PluginManager = require('./pluginManager');
+const ResourceTracker = require('./resourceTracker');
+
 const serverManager = new ServerManager(path.join(__dirname, 'config.json'));
 const backupManager = new BackupManager(path.join(__dirname, '../backups'));
+const modSearcher = new ModSearcher();
+
+// Metrics collector will be initialized per server/handler
+let metricsCollector = null;
 
 let activeServer = serverManager.getActiveServer();
 if (!activeServer) {
@@ -50,22 +59,47 @@ const reloadMinecraftHandler = () => {
     SERVER_DIR = path.resolve(__dirname, activeServer.path);
     JAR_NAME = activeServer.jar;
 
-    const instance = new MinecraftHandler(
-        JAR_NAME,
-        SERVER_DIR,
-        {
-            memory: activeServer.memory || 1024,
-            port: activeServer.port || 25565
-        }
-    );
+    // Re-initialize MinecraftHandler
+    const options = {
+        memory: activeServer.memory || 1024,
+        port: activeServer.port || 25565
+    };
 
-    // Listen for status changes and update config
-    instance.on('status', (status) => {
-        serverManager.updateServerStatus(activeServer.id, status);
-        io.emit('serverStatus', { id: activeServer.id, status });
+    // Stop existing metrics
+    if (metricsCollector) {
+        metricsCollector.stopCollecting();
+    }
+
+    // Ensure server directory exists for the new server
+    if (!fs.existsSync(SERVER_DIR)) {
+        fs.mkdirSync(SERVER_DIR, { recursive: true });
+    }
+
+    // Re-assign the global 'mc' instance
+    mc = new MinecraftHandler(JAR_NAME, SERVER_DIR, options);
+    metricsCollector = new MetricsCollector(mc);
+    metricsCollector.startCollecting();
+
+    // Re-bind events
+    mc.on('line', (line) => {
+        io.emit('console', line);
     });
 
-    return instance;
+    mc.on('status', (status) => {
+        serverManager.updateServerStatus(activeServer.id, status);
+        io.emit('status', status); // Emit general status
+        io.emit('serverStatus', { id: activeServer.id, status }); // Emit server-specific status
+    });
+
+    mc.on('players', (players) => {
+        io.emit('players', players);
+    });
+
+    metricsCollector.on('metricsUpdate', (metrics) => {
+        io.emit('metrics', metrics);
+    });
+
+    return mc; // Return the new mc instance
 };
 
 if (!fs.existsSync(SERVER_DIR)) {
@@ -86,14 +120,24 @@ const modsStorage = multer.diskStorage({
 });
 const upload = multer({ storage: modsStorage });
 
-const mc = new MinecraftHandler(
-    JAR_NAME,
-    SERVER_DIR,
-    {
-        memory: activeServer.memory || 1024,
-        port: activeServer.port || 25565
-    }
-);
+const options = {
+    // defaults if not in config
+    memory: activeServer.memory || 1024,
+    port: activeServer.port || 25565
+};
+
+let mc = new MinecraftHandler(JAR_NAME, SERVER_DIR, options);
+metricsCollector = new MetricsCollector(mc);
+metricsCollector.startCollecting();
+
+mc.on('line', (line) => {
+    io.emit('console', line);
+});
+
+// Emit metrics updates
+metricsCollector.on('metricsUpdate', (metrics) => {
+    io.emit('metrics', metrics);
+});
 const playerDataParser = new PlayerDataParser(SERVER_DIR);
 
 io.on('connection', (socket) => {
@@ -225,10 +269,19 @@ app.get('/api/servers', (req, res) => {
 });
 
 app.post('/api/servers/switch', async (req, res) => {
-    const { id } = req.body;
+    const { id, force } = req.body;
 
-    if (mc.getStatus() !== 'offline') {
+    const currentStatus = mc.getStatus();
+    // Allow switch if offline OR crashed. If online/starting, require 'force' or explicit stop first.
+    // For now, let's allow switching if 'crashed' too.
+    if (currentStatus !== 'offline' && currentStatus !== 'crashed' && !force) {
         return res.status(400).json({ error: 'Server must be offline to switch' });
+    }
+
+    // Force stop if needed (e.g. if we add a force flag later, or just safety)
+    if (currentStatus !== 'offline') {
+        mc.stop(); // Try to stop gracefully
+        // If it was 'crashed', the process might already be gone, but this updates state
     }
 
     if (serverManager.setActiveServer(id)) {
@@ -788,6 +841,167 @@ app.put('/api/servers/:id/files/write', (req, res) => {
         res.json({ success: true, message: 'File saved' });
     } catch (err) {
         console.error('Failed to write file:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- Phase 4: Advanced Features APIs ---
+
+// 1. Metrics & Monitoring
+app.get('/api/servers/:id/metrics', (req, res) => {
+    try {
+        if (metricsCollector) {
+            const current = metricsCollector.getCurrentMetrics();
+            const averages = metricsCollector.getAverages(5);
+            const alerts = metricsCollector.getPerformanceAlerts();
+            res.json({ current, averages, alerts });
+        } else {
+            res.json({ error: 'Metrics collector not initialized' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/servers/:id/metrics/history', (req, res) => {
+    try {
+        if (metricsCollector) {
+            const history = metricsCollector.getRecentMetrics(15); // Last 15 minutes
+            res.json(history);
+        } else {
+            res.json({ error: 'Metrics collector not initialized' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. Enhanced Mod Manager (Search & Install)
+app.get('/api/mods/search', async (req, res) => {
+    try {
+        const { query, version, loader } = req.query;
+        if (!query) {
+            return res.status(400).json({ error: 'Query required' });
+        }
+
+        const results = await modSearcher.searchModrinth(query, version, loader);
+        res.json({ results });
+    } catch (err) {
+        console.error('Mod search failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/servers/:id/mods/install-from-url', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { url, filename } = req.body;
+        const server = serverManager.getServer(id);
+
+        if (!server) return res.status(404).json({ error: 'Server not found' });
+
+        const modsDir = path.join(__dirname, server.path, 'mods');
+        if (!fs.existsSync(modsDir)) {
+            fs.mkdirSync(modsDir, { recursive: true });
+        }
+
+        const destPath = path.join(modsDir, filename);
+        await modSearcher.downloadMod(url, destPath);
+
+        res.json({ success: true, message: 'Mod installed' });
+    } catch (err) {
+        console.error('Mod install failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. Plugin System
+app.get('/api/servers/:id/plugins', (req, res) => {
+    try {
+        const { id } = req.params;
+        const server = serverManager.getServer(id);
+        if (!server) return res.status(404).json({ error: 'Server not found' });
+
+        const pm = new PluginManager(path.join(__dirname, server.path));
+        const plugins = pm.listPlugins();
+        res.json({ plugins });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/servers/:id/plugins/install', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { url, filename } = req.body;
+        const server = serverManager.getServer(id);
+        if (!server) return res.status(404).json({ error: 'Server not found' });
+
+        const pm = new PluginManager(path.join(__dirname, server.path));
+        await pm.installPlugin(url, filename);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/servers/:id/plugins/:name/toggle', (req, res) => {
+    try {
+        const { id, name } = req.params;
+        const { enabled } = req.body;
+        const server = serverManager.getServer(id);
+        if (!server) return res.status(404).json({ error: 'Server not found' });
+
+        const pm = new PluginManager(path.join(__dirname, server.path));
+        const success = pm.togglePlugin(name, enabled);
+        res.json({ success });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/servers/:id/plugins/:name', (req, res) => {
+    try {
+        const { id, name } = req.params;
+        const server = serverManager.getServer(id);
+        if (!server) return res.status(404).json({ error: 'Server not found' });
+
+        const pm = new PluginManager(path.join(__dirname, server.path));
+        // Need to handle extension (jar or jar.disabled)
+        // Simple approach: try both or check via listPlugins
+        // For now, assuming basic deletePlugin handles filename
+        // But the API receives 'name' (without extension maybe?)
+        // Let's assume the frontend sends the full filename or we find it
+
+        // Better: frontend sends filename
+        const filename = req.query.filename || name + '.jar';
+        const success = pm.deletePlugin(filename);
+
+        // Also try disabled one if first failed
+        if (!success) {
+            pm.deletePlugin(name + '.jar.disabled');
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. Resource Usage Tracking
+app.get('/api/servers/:id/resources', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const server = serverManager.getServer(id);
+        if (!server) return res.status(404).json({ error: 'Server not found' });
+
+        const tracker = new ResourceTracker(path.join(__dirname, server.path));
+        const diskUsage = await tracker.getDiskUsage();
+        const breakdown = tracker.getDirectoryBreakdown();
+
+        res.json({ diskUsage, breakdown });
+    } catch (err) {
+        console.error('Resource tracking failed:', err);
         res.status(500).json({ error: err.message });
     }
 });

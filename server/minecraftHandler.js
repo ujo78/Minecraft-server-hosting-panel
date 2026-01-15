@@ -15,7 +15,7 @@ class MinecraftHandler extends EventEmitter {
     }
 
     start() {
-        if (this.status !== 'offline') return;
+        if (this.status !== 'offline' && this.status !== 'crashed') return;
 
         console.log('Starting Minecraft Server...');
         this.status = 'starting';
@@ -79,7 +79,13 @@ class MinecraftHandler extends EventEmitter {
     }
 
     stop() {
-        if (this.status === 'offline' || !this.process) return;
+        if (this.status === 'offline') return;
+
+        if (this.status === 'crashed' || !this.process) {
+            this.status = 'offline';
+            this.emit('status', this.status);
+            return;
+        }
 
         this.status = 'stopping';
         this.emit('status', this.status);
