@@ -85,7 +85,7 @@ class ModSearcher {
      * @param {string} downloadUrl - Direct download URL
      * @param {string} destinationPath - Where to save the file
      */
-    async downloadMod(download Url, destinationPath) {
+    async downloadMod(downloadUrl, destinationPath) {
         return new Promise((resolve, reject) => {
             const file = fs.createWriteStream(destinationPath);
 
