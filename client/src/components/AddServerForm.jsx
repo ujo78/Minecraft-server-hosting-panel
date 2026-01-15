@@ -5,7 +5,8 @@ export default function AddServerForm({ onClose, onInstall }) {
     const [formData, setFormData] = useState({
         name: '',
         templateId: '',
-        memory: 2048  // Default 2GB RAM
+        memory: 2048,  // Default 2GB RAM
+        serverAddress: ''  // Optional custom join address
     });
     const [templates, setTemplates] = useState([]);
     const [loadingTemplates, setLoadingTemplates] = useState(true);
@@ -70,7 +71,8 @@ export default function AddServerForm({ onClose, onInstall }) {
                     id,
                     name: formData.name.trim(),
                     templateId: formData.templateId,
-                    memory: formData.memory
+                    memory: formData.memory,
+                    serverAddress: formData.serverAddress.trim() || null
                 })
             });
 
@@ -157,6 +159,23 @@ export default function AddServerForm({ onClose, onInstall }) {
                         </div>
                         <p className="text-xs text-gray-500 mt-2">
                             💡 Recommended: 2GB for vanilla, 4GB+ for modpacks
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Server Join Address (Optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.serverAddress}
+                            onChange={(e) => handleChange('serverAddress', e.target.value)}
+                            placeholder="e.g., survival.myserver.com or play.example.com:25565"
+                            className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mc-green"
+                            disabled={installing}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            🌐 Custom domain/IP players can use to join. Leave empty to use default IP:port
                         </p>
                     </div>
 

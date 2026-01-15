@@ -179,7 +179,7 @@ class ServerManager {
         return this.config.servers.find(s => s.port === port);
     }
 
-    async installServer(id, name, templateId, memory = 2048) {
+    async installServer(id, name, templateId, memory = 2048, serverAddress = null) {
         if (this.getServer(id)) throw new Error("Server ID already exists");
 
         const templatePath = path.join(this.availableServersDir, templateId);
@@ -310,7 +310,8 @@ class ServerManager {
                 jar: jarName,
                 icon: iconUrl,
                 memory: memory,
-                port: assignedPort
+                port: assignedPort,
+                serverAddress: serverAddress
             });
 
             return true;

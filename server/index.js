@@ -23,7 +23,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
 const ServerManager = require('./serverManager');
+const BackupManager = require('./backupManager');
 const serverManager = new ServerManager(path.join(__dirname, 'config.json'));
+const backupManager = new BackupManager(path.join(__dirname, '../backups'));
 
 let activeServer = serverManager.getActiveServer();
 if (!activeServer) {
@@ -292,7 +294,7 @@ app.get('/api/available-servers', (req, res) => {
 
 app.post('/api/servers/install', async (req, res) => {
     try {
-        const { id, name, templateId, memory } = req.body;
+        const { id, name, templateId, memory, serverAddress } = req.body;
 
         if (!id || !name || !templateId) {
             return res.status(400).json({
@@ -309,12 +311,483 @@ app.post('/api/servers/install', async (req, res) => {
         }
 
         console.log(`Install request for: ${name} (ID: ${id}) from template: ${templateId} with ${allocatedMemory}MB RAM`);
+        if (serverAddress) {
+            console.log(`  Custom join address: ${serverAddress}`);
+        }
 
-        await serverManager.installServer(id, name, templateId, allocatedMemory);
+        await serverManager.installServer(id, name, templateId, allocatedMemory, serverAddress);
 
         res.json({ success: true });
     } catch (err) {
         console.error("Install failed:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- Backup Management APIs ---
+
+// Create a backup
+app.post('/api/servers/:id/backups', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name } = req.body;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const serverPath = path.resolve(__dirname, server.path);
+        const backup = await backupManager.createBackup(id, serverPath, name);
+
+        res.json({ success: true, backup });
+    } catch (err) {
+        console.error('Backup creation failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// List backups for a server
+app.get('/api/servers/:id/backups', (req, res) => {
+    try {
+        const { id } = req.params;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const backups = backupManager.listBackups(id);
+        const stats = backupManager.getBackupStats(id);
+
+        res.json({ backups, stats });
+    } catch (err) {
+        console.error('Failed to list backups:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Restore a backup
+app.post('/api/servers/:id/backups/:backupId/restore', async (req, res) => {
+    try {
+        const { id, backupId } = req.params;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        // Server must be offline to restore
+        if (server.status !== 'offline') {
+            return res.status(400).json({ error: 'Server must be offline to restore backup' });
+        }
+
+        const serverPath = path.resolve(__dirname, server.path);
+        await backupManager.restoreBackup(id, backupId, serverPath);
+
+        res.json({ success: true, message: 'Backup restored successfully' });
+    } catch (err) {
+        console.error('Backup restore failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete a backup
+app.delete('/api/servers/:id/backups/:backupId', (req, res) => {
+    try {
+        const { id, backupId } = req.params;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const success = backupManager.deleteBackup(id, backupId);
+
+        if (success) {
+            res.json({ success: true, message: 'Backup deleted' });
+        } else {
+            res.status(404).json({ error: 'Backup not found' });
+        }
+    } catch (err) {
+        console.error('Failed to delete backup:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Download a backup
+app.get('/api/servers/:id/backups/:backupId/download', (req, res) => {
+    try {
+        const { id, backupId } = req.params;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const backupPath = backupManager.getBackupPath(id, backupId);
+
+        if (!backupPath) {
+            return res.status(404).json({ error: 'Backup not found' });
+        }
+
+        res.download(backupPath, `${id}-${backupId}.zip`);
+    } catch (err) {
+        console.error('Failed to download backup:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- Server Properties Editor APIs ---
+
+// Helper function to parse server.properties
+function parseProperties(filePath) {
+    if (!fs.existsSync(filePath)) {
+        return {};
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    const props = {};
+
+    content.split('\n').forEach(line => {
+        line = line.trim();
+        if (line && !line.startsWith('#')) {
+            const eqIndex = line.indexOf('=');
+            if (eqIndex !== -1) {
+                const key = line.substring(0, eqIndex).trim();
+                const value = line.substring(eqIndex + 1).trim();
+                props[key] = value;
+            }
+        }
+    });
+
+    return props;
+}
+
+// Helper function to write server.properties
+function writeProperties(filePath, props) {
+    let content = '# Minecraft server properties\n';
+    content += `# Last modified: ${new Date().toISOString()}\n\n`;
+
+    for (const [key, value] of Object.entries(props)) {
+        content += `${key}=${value}\n`;
+    }
+
+    fs.writeFileSync(filePath, content, 'utf8');
+}
+
+// Get server properties
+app.get('/api/servers/:id/properties', (req, res) => {
+    try {
+        const { id } = req.params;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const propsPath = path.resolve(__dirname, server.path, 'server.properties');
+        const properties = parseProperties(propsPath);
+
+        res.json({ properties });
+    } catch (err) {
+        console.error('Failed to read properties:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Update server properties
+app.put('/api/servers/:id/properties', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { properties } = req.body;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const propsPath = path.resolve(__dirname, server.path, 'server.properties');
+        writeProperties(propsPath, properties);
+
+        res.json({ success: true, message: 'Properties updated' });
+    } catch (err) {
+        console.error('Failed to update properties:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- Whitelist Management APIs ---
+
+// Get whitelist
+app.get('/api/servers/:id/whitelist', (req, res) => {
+    try {
+        const { id } = req.params;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const whitelistPath = path.resolve(__dirname, server.path, 'whitelist.json');
+        let whitelist = [];
+
+        if (fs.existsSync(whitelistPath)) {
+            whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8'));
+        }
+
+        // Check if whitelist is enabled in properties
+        const propsPath = path.resolve(__dirname, server.path, 'server.properties');
+        const props = parseProperties(propsPath);
+        const enabled = props['white-list'] === 'true';
+
+        res.json({ whitelist, enabled });
+    } catch (err) {
+        console.error('Failed to read whitelist:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Add player to whitelist
+app.post('/api/servers/:id/whitelist', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { username } = req.body;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        // Lookup UUID from Mojang API
+        const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
+        if (!response.ok) {
+            return res.status(404).json({ error: 'Player not found' });
+        }
+
+        const playerData = await response.json();
+        const uuid = playerData.id;
+        const name = playerData.name;
+
+        // Format UUID with dashes
+        const formattedUuid = uuid.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+
+        const whitelistPath = path.resolve(__dirname, server.path, 'whitelist.json');
+        let whitelist = [];
+
+        if (fs.existsSync(whitelistPath)) {
+            whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8'));
+        }
+
+        // Check if player already whitelisted
+        if (whitelist.some(p => p.uuid === formattedUuid)) {
+            return res.status(400).json({ error: 'Player already whitelisted' });
+        }
+
+        whitelist.push({ uuid: formattedUuid, name });
+        fs.writeFileSync(whitelistPath, JSON.stringify(whitelist, null, 2));
+
+        // Reload whitelist if server is running
+        if (mc && mc.getStatus() === 'online') {
+            mc.sendCommand('whitelist reload');
+        }
+
+        res.json({ success: true, player: { uuid: formattedUuid, name } });
+    } catch (err) {
+        console.error('Failed to add to whitelist:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Remove player from whitelist
+app.delete('/api/servers/:id/whitelist/:username', (req, res) => {
+    try {
+        const { id, username } = req.params;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const whitelistPath = path.resolve(__dirname, server.path, 'whitelist.json');
+
+        if (!fs.existsSync(whitelistPath)) {
+            return res.status(404).json({ error: 'Whitelist not found' });
+        }
+
+        let whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8'));
+        const originalLength = whitelist.length;
+
+        whitelist = whitelist.filter(p => p.name.toLowerCase() !== username.toLowerCase());
+
+        if (whitelist.length === originalLength) {
+            return res.status(404).json({ error: 'Player not in whitelist' });
+        }
+
+        fs.writeFileSync(whitelistPath, JSON.stringify(whitelist, null, 2));
+
+        // Reload whitelist if server is running
+        if (mc && mc.getStatus() === 'online') {
+            mc.sendCommand('whitelist reload');
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Failed to remove from whitelist:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Toggle whitelist enabled/disabled
+app.put('/api/servers/:id/whitelist/toggle', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { enabled } = req.body;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const propsPath = path.resolve(__dirname, server.path, 'server.properties');
+        const props = parseProperties(propsPath);
+        props['white-list'] = enabled ? 'true' : 'false';
+        writeProperties(propsPath, props);
+
+        // Execute whitelist on/off command if server is running
+        if (mc && mc.getStatus() === 'online') {
+            mc.sendCommand(`whitelist ${enabled ? 'on' : 'off'}`);
+        }
+
+        res.json({ success: true, enabled });
+    } catch (err) {
+        console.error('Failed to toggle whitelist:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- File Browser APIs ---
+
+// Helper to validate and sanitize paths
+function validatePath(basePath, requestedPath) {
+    const fullPath = path.resolve(basePath, requestedPath || '.');
+
+    // Ensure path is within base directory
+    if (!fullPath.startsWith(basePath)) {
+        throw new Error('Invalid path');
+    }
+
+    return fullPath;
+}
+
+// List directory contents
+app.get('/api/servers/:id/files', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { path: requestedPath } = req.query;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const serverPath = path.resolve(__dirname, server.path);
+        const fullPath = validatePath(serverPath, requestedPath);
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ error: 'Path not found' });
+        }
+
+        const stat = fs.statSync(fullPath);
+
+        if (!stat.isDirectory()) {
+            return res.status(400).json({ error: 'Path is not a directory' });
+        }
+
+        const items = fs.readdirSync(fullPath).map(name => {
+            const itemPath = path.join(fullPath, name);
+            const itemStat = fs.statSync(itemPath);
+
+            return {
+                name,
+                type: itemStat.isDirectory() ? 'directory' : 'file',
+                size: itemStat.size,
+                modified: itemStat.mtime
+            };
+        });
+
+        res.json({ items, path: requestedPath || '/' });
+    } catch (err) {
+        console.error('Failed to list files:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Read file content
+app.get('/api/servers/:id/files/read', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { path: requestedPath } = req.query;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const serverPath = path.resolve(__dirname, server.path);
+        const fullPath = validatePath(serverPath, requestedPath);
+
+        if (!fs.existsSync(fullPath)) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        const stat = fs.statSync(fullPath);
+
+        if (stat.isDirectory()) {
+            return res.status(400).json({ error: 'Path is a directory' });
+        }
+
+        // Limit file size for editing (1MB)
+        if (stat.size > 1024 * 1024) {
+            return res.status(400).json({ error: 'File too large to edit (max 1MB)' });
+        }
+
+        const content = fs.readFileSync(fullPath, 'utf8');
+
+        res.json({ content, path: requestedPath });
+    } catch (err) {
+        console.error('Failed to read file:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Update file content
+app.put('/api/servers/:id/files/write', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { path: requestedPath, content } = req.body;
+        const server = serverManager.getServer(id);
+
+        if (!server) {
+            return res.status(404).json({ error: 'Server not found' });
+        }
+
+        const serverPath = path.resolve(__dirname, server.path);
+        const fullPath = validatePath(serverPath, requestedPath);
+
+        // Don't allow editing certain file types
+        const ext = path.extname(fullPath);
+        const blockedExtensions = ['.jar', '.dat', '.mca'];
+
+        if (blockedExtensions.includes(ext)) {
+            return res.status(403).json({ error: 'File type cannot be edited' });
+        }
+
+        fs.writeFileSync(fullPath, content, 'utf8');
+
+        res.json({ success: true, message: 'File saved' });
+    } catch (err) {
+        console.error('Failed to write file:', err);
         res.status(500).json({ error: err.message });
     }
 });

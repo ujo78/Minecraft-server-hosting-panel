@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Server as ServerIcon, Plus, Trash2, PlayCircle, Loader2 } from 'lucide-react';
+import { Server as ServerIcon, Plus, Trash2, PlayCircle, Loader2, Copy, Check } from 'lucide-react';
 import AddServerForm from './AddServerForm';
 
 export default function ServerSelector({ activeServerId, onServerSwitch }) {
@@ -7,6 +7,7 @@ export default function ServerSelector({ activeServerId, onServerSwitch }) {
     const [showSearch, setShowSearch] = useState(false);
     const [installing, setInstalling] = useState(false);
     const [installStatus, setInstallStatus] = useState('');
+    const [copiedId, setCopiedId] = useState(null);
 
     const fetchServers = async () => {
         try {
@@ -66,6 +67,18 @@ export default function ServerSelector({ activeServerId, onServerSwitch }) {
         // Just refresh the server list and close the form
         setShowSearch(false);
         await fetchServers();
+    };
+
+    const handleCopyAddress = async (e, server) => {
+        e.stopPropagation();
+        const address = server.serverAddress || `your-server-ip:${server.port || 25565}`;
+        try {
+            await navigator.clipboard.writeText(address);
+            setCopiedId(server.id);
+            setTimeout(() => setCopiedId(null), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
     };
 
     return (
@@ -138,6 +151,25 @@ export default function ServerSelector({ activeServerId, onServerSwitch }) {
                                             <span className="text-gray-600 group-hover:text-gray-500">Click to play</span>
                                         )}
                                     </div>
+                                    {(server.serverAddress || isActive) && (
+                                        <div className="flex items-center gap-1 text-xs mt-2">
+                                            <span className={`font-mono truncate ${isActive ? 'text-blue-400' : 'text-gray-500'}`}>
+                                                {server.serverAddress || `your-server-ip:${server.port || 25565}`}
+                                            </span>
+                                            <button
+                                                onClick={(e) => handleCopyAddress(e, server)}
+                                                className={`p-1 rounded hover:bg-dark-700 transition-colors ${copiedId === server.id ? 'text-mc-green' : 'text-gray-500 hover:text-gray-300'
+                                                    }`}
+                                                title="Copy join address"
+                                            >
+                                                {copiedId === server.id ? (
+                                                    <Check className="w-3 h-3" />
+                                                ) : (
+                                                    <Copy className="w-3 h-3" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 {isActive ? (
                                     <div className="text-mc-green">
