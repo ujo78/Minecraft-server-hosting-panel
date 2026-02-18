@@ -106,6 +106,76 @@ if (activeServer) {
     initMinecraftHandler();
 }
 
+// ─── Socket.IO: Handle incoming commands from Web VM relay ────
+
+io.on('connection', (socket) => {
+    console.log('🔌 Web VM connected via Socket.IO');
+
+    // Send current status immediately
+    if (mc) {
+        socket.emit('status', mc.status || 'offline');
+    }
+
+    socket.on('command', (cmd) => {
+        console.log(`📨 Command received: ${cmd}`);
+        handleServerCommand(cmd);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('🔌 Web VM disconnected');
+    });
+});
+
+// ─── REST: Server control endpoint ───────────────────────────
+
+app.post('/api/control', (req, res) => {
+    const { action } = req.body;
+    if (!action) return res.status(400).json({ error: 'Missing action' });
+
+    try {
+        handleServerCommand(action);
+        res.json({ success: true, action });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+function handleServerCommand(action) {
+    if (!mc) {
+        if (activeServer) {
+            initMinecraftHandler();
+        } else {
+            console.error('No active server configured');
+            return;
+        }
+    }
+
+    switch (action) {
+        case 'start':
+            if (mc.status === 'offline' || mc.status === 'stopped' || mc.status === 'crashed') {
+                mc.start();
+            }
+            break;
+        case 'stop':
+            if (mc.status === 'online' || mc.status === 'starting') {
+                mc.stop();
+            }
+            break;
+        case 'restart':
+            mc.stop();
+            setTimeout(() => mc.start(), 3000);
+            break;
+        case 'kill':
+            mc.kill?.();
+            break;
+        default:
+            // Treat as a console command
+            if (mc.sendCommand) {
+                mc.sendCommand(action);
+            }
+    }
+}
+
 // ─── Multer for mod uploads ───────────────────────────────────
 
 const modsStorage = multer.diskStorage({
