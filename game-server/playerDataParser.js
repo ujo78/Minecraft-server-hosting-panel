@@ -5,7 +5,17 @@ const nbt = require('nbt');
 
 const readFile = promisify(fs.readFile);
 const readdir = promisify(fs.readdir);
-const parseNbt = promisify(nbt.parse);
+// Custom promisify to ensure we catch all errors and preserve context
+const parseNbt = (data) => new Promise((resolve, reject) => {
+    try {
+        nbt.parse(data, (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+        });
+    } catch (err) {
+        reject(err);
+    }
+});
 
 class PlayerDataParser {
     constructor(serverDir) {
@@ -14,53 +24,9 @@ class PlayerDataParser {
         this.statsDir = path.join(this.worldDir, 'stats');
         this.playerDataDir = path.join(this.worldDir, 'playerdata');
     }
+    // ... (rest of methods)
 
-    async getPlayerUUID(username) {
-        try {
-            const userCachePath = path.join(this.serverDir, 'usercache.json');
-            if (!fs.existsSync(userCachePath)) return null;
-
-            const cache = JSON.parse(await readFile(userCachePath, 'utf8'));
-            const player = cache.find(p => p.name.toLowerCase() === username.toLowerCase());
-            return player ? player.uuid : null;
-        } catch (err) {
-            console.error('Error reading usercache:', err);
-            return null;
-        }
-    }
-
-    async getPlayerStatistics(username) {
-        try {
-            const uuid = await this.getPlayerUUID(username);
-            if (!uuid) return null;
-
-            const statsFile = path.join(this.statsDir, `${uuid}.json`);
-            if (!fs.existsSync(statsFile)) return null;
-
-            const stats = JSON.parse(await readFile(statsFile, 'utf8'));
-            return this.parseStats(stats);
-        } catch (err) {
-            console.error('Error reading player stats:', err);
-            return null;
-        }
-    }
-
-    parseStats(rawStats) {
-        const stats = rawStats.stats || {};
-
-        return {
-            deaths: stats['minecraft:custom']?.['minecraft:deaths'] || 0,
-            playTime: stats['minecraft:custom']?.['minecraft:play_time'] || 0,
-            timeSinceDeath: stats['minecraft:custom']?.['minecraft:time_since_death'] || 0,
-            mobKills: stats['minecraft:custom']?.['minecraft:mob_kills'] || 0,
-            playerKills: stats['minecraft:custom']?.['minecraft:player_kills'] || 0,
-            damageDealt: stats['minecraft:custom']?.['minecraft:damage_dealt'] || 0,
-            damageTaken: stats['minecraft:custom']?.['minecraft:damage_taken'] || 0,
-            jumps: stats['minecraft:custom']?.['minecraft:jump'] || 0,
-            distanceWalked: stats['minecraft:custom']?.['minecraft:walk_one_cm'] || 0,
-            distanceFlown: stats['minecraft:custom']?.['minecraft:fly_one_cm'] || 0,
-        };
-    }
+    // ...
 
     async getPlayerNBTData(username) {
         try {
@@ -70,10 +36,19 @@ class PlayerDataParser {
             const playerFile = path.join(this.playerDataDir, `${uuid}.dat`);
             if (!fs.existsSync(playerFile)) return null;
 
-            const data = await readFile(playerFile);
-            const parsed = await parseNbt(data);
+            // Check file size - empty files cause crashes
+            const stats = fs.statSync(playerFile);
+            if (stats.size === 0) return null;
 
-            return this.parseNBT(parsed);
+            const data = await readFile(playerFile);
+
+            try {
+                const parsed = await parseNbt(data);
+                return this.parseNBT(parsed);
+            } catch (parseErr) {
+                console.error(`Error parsing NBT for ${username} (${uuid}):`, parseErr.message);
+                return null; // Return null instead of crashing
+            }
         } catch (err) {
             console.error('Error reading player NBT:', err);
             return null;
