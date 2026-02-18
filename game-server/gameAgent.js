@@ -244,6 +244,41 @@ function discoverServers() {
     return discovered;
 }
 
+// Read actual RAM allocation from user_jvm_args.txt
+function readJvmMemory(serverPath) {
+    const jvmFiles = ['user_jvm_args.txt', 'jvm_args.txt'];
+    for (const file of jvmFiles) {
+        const jvmPath = path.join(serverPath, file);
+        if (fs.existsSync(jvmPath)) {
+            try {
+                const content = fs.readFileSync(jvmPath, 'utf8');
+                const xmxMatch = content.match(/-Xmx(\d+)([MmGg])/);
+                if (xmxMatch) {
+                    const value = parseInt(xmxMatch[1]);
+                    const unit = xmxMatch[2].toUpperCase();
+                    return unit === 'G' ? value * 1024 : value;
+                }
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    // Fallback: check run.sh for -Xmx
+    const runSh = path.join(serverPath, 'run.sh');
+    if (fs.existsSync(runSh)) {
+        try {
+            const content = fs.readFileSync(runSh, 'utf8');
+            const xmxMatch = content.match(/-Xmx(\d+)([MmGg])/);
+            if (xmxMatch) {
+                const value = parseInt(xmxMatch[1]);
+                const unit = xmxMatch[2].toUpperCase();
+                return unit === 'G' ? value * 1024 : value;
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    return 2048; // default
+}
+
 // Auto-register a discovered server
 app.post('/api/refresh-servers/register', (req, res) => {
     try {
@@ -1122,6 +1157,9 @@ server.listen(PORT, '0.0.0.0', () => {
         const discovered = discoverServers();
         let registered = 0;
         for (const srv of discovered) {
+            // Read actual RAM from user_jvm_args.txt
+            const actualMemory = readJvmMemory(srv.path);
+
             if (!srv.alreadyRegistered) {
                 const id = srv.directory.toLowerCase().replace(/[^a-z0-9-]/g, '-');
                 serverManager.addServer({
@@ -1129,13 +1167,15 @@ server.listen(PORT, '0.0.0.0', () => {
                     name: srv.directory,
                     path: srv.path,
                     jar: srv.startupFile,
-                    memory: 2048,
+                    memory: actualMemory,
                     port: serverManager.findAvailablePort()
                 });
                 registered++;
-                console.log(`  ✅ Auto-registered: ${srv.directory} (${srv.startupFile})`);
+                console.log(`  ✅ Auto-registered: ${srv.directory} (${srv.startupFile}, ${actualMemory}MB RAM)`);
             } else {
-                console.log(`  📋 Already registered: ${srv.directory}`);
+                // Sync memory from file for already-registered servers
+                serverManager.updateServerMemory(srv.registeredId, actualMemory);
+                console.log(`  📋 Already registered: ${srv.directory} (synced ${actualMemory}MB RAM)`);
             }
         }
         if (discovered.length === 0) {
