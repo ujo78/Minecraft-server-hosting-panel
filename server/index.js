@@ -286,7 +286,7 @@ io.on('connection', (socket) => {
 
 // ─── SPA Fallback ─────────────────────────────────────────────
 
-app.get('*', (req, res) => {
+app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
