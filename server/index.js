@@ -208,6 +208,7 @@ app.use(createGameProxy(vmManager, inactivityTimer));
 
 const { io: ioClient } = require('socket.io-client');
 let gameSocket = null;
+let lastGameStatus = 'offline';
 
 function connectToGameAgent() {
     if (!vmManager.agentReady || !vmManager.gameAgentUrl) {
@@ -232,6 +233,11 @@ function connectToGameAgent() {
 
     relayEvents.forEach(event => {
         gameSocket.on(event, (data) => {
+            // Cache the last known status
+            if (event === 'status') {
+                lastGameStatus = data;
+            }
+
             io.emit(event, data);
 
             // Player join/leave resets the inactivity timer
@@ -243,10 +249,14 @@ function connectToGameAgent() {
 
     gameSocket.on('connect', () => {
         console.log('🔌 Socket.IO relay connected to Game Agent');
+        // Ask for status immediately upon connection
+        // (The game agent sends it automatically on connect, but this is safe)
     });
 
     gameSocket.on('disconnect', (reason) => {
         console.log(`🔌 Socket.IO relay disconnected: ${reason}`);
+        lastGameStatus = 'offline'; // Reset when agent disconnects
+        io.emit('status', 'offline');
     });
 }
 
@@ -269,6 +279,9 @@ io.on('connection', (socket) => {
         status: vmManager.status,
         agentReady: vmManager.agentReady
     });
+
+    // Send last known Game Server status immediately
+    socket.emit('status', lastGameStatus);
 
     // Relay commands from browser → Game VM
     socket.on('command', (cmd) => {
