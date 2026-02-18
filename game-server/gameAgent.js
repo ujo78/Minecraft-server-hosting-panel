@@ -132,10 +132,13 @@ app.post('/api/control', (req, res) => {
     const { action } = req.body;
     if (!action) return res.status(400).json({ error: 'Missing action' });
 
+    console.log(`🎮 /api/control called: action=${action}, activeServer=${activeServer?.id || 'none'}, mc=${mc ? 'exists' : 'null'}, mcStatus=${mc?.status || 'N/A'}`);
+
     try {
-        handleServerCommand(action);
-        res.json({ success: true, action });
+        const result = handleServerCommand(action);
+        res.json({ success: true, action, ...result });
     } catch (err) {
+        console.error('Control error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -143,36 +146,56 @@ app.post('/api/control', (req, res) => {
 function handleServerCommand(action) {
     if (!mc) {
         if (activeServer) {
+            console.log('📦 Initializing MinecraftHandler for:', activeServer.id);
             initMinecraftHandler();
         } else {
-            console.error('No active server configured');
-            return;
+            console.error('❌ No active server configured');
+            return { executed: false, reason: 'No active server' };
         }
     }
 
+    if (!mc) {
+        return { executed: false, reason: 'Failed to initialize handler' };
+    }
+
+    const prevStatus = mc.status;
+    console.log(`📨 handleServerCommand: action=${action}, currentStatus=${prevStatus}`);
+
     switch (action) {
         case 'start':
-            if (mc.status === 'offline' || mc.status === 'stopped' || mc.status === 'crashed') {
+            if (mc.status === 'offline' || mc.status === 'crashed') {
+                console.log('▶️ Starting server...');
                 mc.start();
+                return { executed: true, prevStatus, newStatus: mc.status };
             }
-            break;
+            return { executed: false, reason: `Cannot start: status is ${mc.status}` };
         case 'stop':
             if (mc.status === 'online' || mc.status === 'starting') {
+                console.log('⏹️ Stopping server...');
                 mc.stop();
+                return { executed: true, prevStatus, newStatus: mc.status };
             }
-            break;
+            return { executed: false, reason: `Cannot stop: status is ${mc.status}` };
         case 'restart':
+            console.log('🔄 Restarting server...');
             mc.stop();
             setTimeout(() => mc.start(), 3000);
-            break;
+            return { executed: true, prevStatus };
         case 'kill':
-            mc.kill?.();
-            break;
+            if (mc.process) {
+                mc.process.kill('SIGKILL');
+                mc.status = 'offline';
+                mc.process = null;
+                io.emit('status', 'offline');
+            }
+            return { executed: true, prevStatus };
         default:
-            // Treat as a console command
+            // Treat as console command
             if (mc.sendCommand) {
                 mc.sendCommand(action);
+                return { executed: true, type: 'console_command' };
             }
+            return { executed: false, reason: 'Unknown command' };
     }
 }
 

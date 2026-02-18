@@ -114,13 +114,22 @@ function App() {
     const sendControl = async (action) => {
         setControlLoading(true);
         try {
-            await fetch('/api/control', {
+            const res = await fetch('/api/control', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action }),
             });
+            const data = await res.json();
+            console.log('Control response:', data);
+            if (!res.ok) {
+                console.error('Control failed:', data);
+                alert(`Failed: ${data.error || data.message || 'Unknown error'}`);
+            } else if (data.executed === false) {
+                console.warn('Command not executed:', data.reason);
+            }
         } catch (error) {
             console.error('Failed to send control', error);
+            alert('Failed to reach the server. Is the Game VM running?');
         } finally {
             setControlLoading(false);
         }
