@@ -33,7 +33,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.GAME_AGENT_PORT || 4000;
-const MCPANEL_DIR = process.env.MCPANEL_DIR || '/home/rajrakshit838/Mcpanel';
+const MCPANEL_DIR = process.env.MCPANEL_DIR || '/home/rajrakshit838/McPanel';
 
 // ─── Initialize Managers ──────────────────────────────────────
 
