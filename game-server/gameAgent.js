@@ -252,7 +252,11 @@ function readJvmMemory(serverPath) {
         if (fs.existsSync(jvmPath)) {
             try {
                 const content = fs.readFileSync(jvmPath, 'utf8');
-                const xmxMatch = content.match(/-Xmx(\d+)([MmGg])/);
+                // Filter out comment lines (starting with #)
+                const activeLines = content.split('\n')
+                    .filter(line => !line.trim().startsWith('#'))
+                    .join('\n');
+                const xmxMatch = activeLines.match(/-Xmx(\d+)([MmGg])/);
                 if (xmxMatch) {
                     const value = parseInt(xmxMatch[1]);
                     const unit = xmxMatch[2].toUpperCase();
@@ -267,7 +271,10 @@ function readJvmMemory(serverPath) {
     if (fs.existsSync(runSh)) {
         try {
             const content = fs.readFileSync(runSh, 'utf8');
-            const xmxMatch = content.match(/-Xmx(\d+)([MmGg])/);
+            const activeLines = content.split('\n')
+                .filter(line => !line.trim().startsWith('#'))
+                .join('\n');
+            const xmxMatch = activeLines.match(/-Xmx(\d+)([MmGg])/);
             if (xmxMatch) {
                 const value = parseInt(xmxMatch[1]);
                 const unit = xmxMatch[2].toUpperCase();
