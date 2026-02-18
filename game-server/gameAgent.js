@@ -622,6 +622,96 @@ app.put('/api/servers/:id/properties', (req, res) => {
     }
 });
 
+// ─── JVM Args Management ──────────────────────────────────────
+
+app.get('/api/servers/:id/jvm-args', (req, res) => {
+    try {
+        const { id } = req.params;
+        const srv = serverManager.getServer(id);
+        if (!srv) return res.status(404).json({ error: 'Server not found' });
+
+        const jvmPath = resolveServerPath(srv.path, 'user_jvm_args.txt');
+        let content = '';
+        let memory = { xmx: null, xms: null };
+
+        if (fs.existsSync(jvmPath)) {
+            content = fs.readFileSync(jvmPath, 'utf8');
+
+            // Parse Xmx (max memory)
+            const xmxMatch = content.match(/-Xmx(\d+)([MmGg])/);
+            if (xmxMatch) {
+                const value = parseInt(xmxMatch[1]);
+                const unit = xmxMatch[2].toUpperCase();
+                memory.xmx = unit === 'G' ? value * 1024 : value; // normalize to MB
+            }
+
+            // Parse Xms (min memory)
+            const xmsMatch = content.match(/-Xms(\d+)([MmGg])/);
+            if (xmsMatch) {
+                const value = parseInt(xmsMatch[1]);
+                const unit = xmsMatch[2].toUpperCase();
+                memory.xms = unit === 'G' ? value * 1024 : value;
+            }
+        }
+
+        res.json({ content, memory, exists: fs.existsSync(jvmPath) });
+    } catch (err) {
+        console.error('Failed to read JVM args:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/servers/:id/jvm-args', (req, res) => {
+    try {
+        const { id } = req.params;
+        const { content, memory } = req.body;
+        const srv = serverManager.getServer(id);
+        if (!srv) return res.status(404).json({ error: 'Server not found' });
+
+        const jvmPath = resolveServerPath(srv.path, 'user_jvm_args.txt');
+
+        if (content !== undefined) {
+            // Raw content mode — write directly
+            fs.writeFileSync(jvmPath, content, 'utf8');
+        } else if (memory) {
+            // Structured mode — update or create with Xmx/Xms
+            let existing = '';
+            if (fs.existsSync(jvmPath)) {
+                existing = fs.readFileSync(jvmPath, 'utf8');
+            }
+
+            const xmx = memory.xmx || memory.max || 4096;
+            const xms = memory.xms || memory.min || xmx;
+
+            if (existing) {
+                // Replace existing Xmx/Xms values
+                if (existing.match(/-Xmx\d+[MmGg]/)) {
+                    existing = existing.replace(/-Xmx\d+[MmGg]/, `-Xmx${xmx}M`);
+                } else {
+                    existing += `\n-Xmx${xmx}M`;
+                }
+                if (existing.match(/-Xms\d+[MmGg]/)) {
+                    existing = existing.replace(/-Xms\d+[MmGg]/, `-Xms${xms}M`);
+                } else {
+                    existing += `\n-Xms${xms}M`;
+                }
+                fs.writeFileSync(jvmPath, existing, 'utf8');
+            } else {
+                // Create new file
+                fs.writeFileSync(jvmPath, `# JVM Arguments\n-Xmx${xmx}M\n-Xms${xms}M\n`, 'utf8');
+            }
+
+            // Also update the server config
+            serverManager.updateServerMemory(id, xmx);
+        }
+
+        res.json({ success: true, message: 'JVM args updated' });
+    } catch (err) {
+        console.error('Failed to update JVM args:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Whitelist Management ─────────────────────────────────────
 
 app.get('/api/servers/:id/whitelist', (req, res) => {

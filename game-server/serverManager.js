@@ -176,6 +176,16 @@ class ServerManager {
         return false;
     }
 
+    updateServerMemory(id, memoryMB) {
+        const server = this.getServer(id);
+        if (server) {
+            server.memory = memoryMB;
+            this.saveConfig();
+            return true;
+        }
+        return false;
+    }
+
     getServerByPort(port) {
         return this.config.servers.find(s => s.port === port);
     }
