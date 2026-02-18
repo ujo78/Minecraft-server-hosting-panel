@@ -78,6 +78,9 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
 
+// Trust Nginx proxy (needed for correct HTTPS redirect in OAuth)
+app.set('trust proxy', 1);
+
 // Serve React frontend (production build)
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
@@ -88,7 +91,8 @@ const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/auth/google/callback'
+    callbackURL: process.env.OAUTH_CALLBACK_URL || '/auth/google/callback',
+    proxy: true
 }, (accessToken, refreshToken, profile, done) => {
     const email = profile.emails && profile.emails[0] ? profile.emails[0].value : '';
     done(null, { id: profile.id, email, name: profile.displayName, photo: profile.photos?.[0]?.value });
