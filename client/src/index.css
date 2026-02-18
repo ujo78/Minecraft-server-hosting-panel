@@ -2,24 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  background-color: #121212;
-  color: #e0e0e0;
-  font-family: 'Inter', sans-serif;
+/* ─── Fonts ─── */
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=VT323&display=swap');
+
+:root {
+  /* ─── Colors ─── */
+  --mc-green: #52eb34;
+  --mc-green-dim: rgba(82, 235, 52, 0.2);
+  --mc-brown: #5d4037;
+  --mc-brown-dim: rgba(93, 64, 55, 0.3);
+  --mc-bg: #0c0c0c;
+  --mc-surface: rgba(20, 20, 20, 0.7);
+  --mc-text-main: #e0e0e0;
+  --mc-text-dim: #a0a0a0;
+
+  /* ─── Blur ─── */
+  --glass-blur: blur(10px);
 }
 
-/* ─── VM Status Banner ──────────────────────────────── */
+html,
+body {
+  background-color: var(--mc-bg);
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(82, 235, 52, 0.03) 0%, transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(93, 64, 55, 0.05) 0%, transparent 25%);
+  color: var(--mc-text-main);
+  font-family: 'Rajdhani', sans-serif;
+  overflow-x: hidden;
+}
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'VT323', monospace;
+  letter-spacing: 1px;
+}
+
+/* ─── Utility Classes ─── */
+
+.glass-panel {
+  background: var(--mc-surface);
+  backdrop-filter: var(--glass-blur);
+  border-top: 2px solid var(--mc-green);
+  border-bottom: 4px solid var(--mc-brown);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.minecraft-btn {
+  font-family: 'VT323', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 1.2rem;
+  padding: 8px 20px;
+  background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+  border: 2px solid #000;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.1), 0 4px 0 #000;
+  color: #fff;
+  transition: all 0.1s;
+  position: relative;
+  cursor: pointer;
+}
+
+.minecraft-btn:active {
+  transform: translateY(4px);
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.2), 0 0 0 #000;
+}
+
+.minecraft-btn-primary {
+  background: linear-gradient(180deg, #52eb34 0%, #3aa324 100%);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  color: #000;
+}
+
+.minecraft-btn-danger {
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pixel-corners {
+  clip-path: polygon(0px 4px, 4px 4px, 4px 0px,
+      calc(100% - 4px) 0px, calc(100% - 4px) 4px, 100% 4px,
+      100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
+      4px 100%, 4px calc(100% - 4px), 0px calc(100% - 4px));
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 10px;
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mc-brown);
+  border: 2px solid #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #795548;
+}
+
+/* ─── VM Banner (Rethemed) ─── */
 .vm-banner {
   padding: 10px 20px;
   font-size: 14px;
-  font-weight: 500;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
   animation: vmSlideDown 0.3s ease-out;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
 @keyframes vmSlideDown {
-  from { transform: translateY(-100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .vm-banner-content {
@@ -29,100 +136,36 @@ html, body {
 }
 
 .vm-banner-stopped {
-  background: linear-gradient(135deg, #1e1e2e, #2d1f1f);
-  border-bottom: 1px solid #443333;
-  color: #ef9a9a;
+  background: linear-gradient(90deg, rgba(82, 235, 52, 0.05), transparent);
+  border-left: 4px solid var(--mc-green);
+  color: var(--mc-text-main);
 }
 
 .vm-banner-starting {
-  background: linear-gradient(135deg, #1e1e2e, #2d2a1f);
-  border-bottom: 1px solid #44403c;
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.1), transparent);
+  border-left: 4px solid #fbbf24;
   color: #fbbf24;
 }
 
 .vm-banner-stopping {
-  background: linear-gradient(135deg, #1e1e2e, #2d2a1f);
-  border-bottom: 1px solid #44403c;
-  color: #fb923c;
-}
-
-.vm-banner-warning {
-  background: linear-gradient(135deg, #1e1e2e, #342a1f);
-  border-bottom: 1px solid #554422;
-  color: #f59e0b;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), transparent);
+  border-left: 4px solid #ef4444;
+  color: #ef4444;
 }
 
 .vm-banner-btn {
-  padding: 5px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-  margin-left: auto;
-}
-
-.vm-banner-btn-start {
-  background: #22c55e;
+  font-family: 'VT323', monospace;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  background: var(--mc-green);
   color: #000;
-}
-
-.vm-banner-btn-start:hover:not(:disabled) {
-  background: #16a34a;
-  transform: scale(1.02);
-}
-
-.vm-banner-btn-start:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.vm-banner-dismiss {
-  margin-left: auto;
-  background: none;
   border: none;
-  color: inherit;
-  opacity: 0.6;
+  padding: 4px 12px;
   cursor: pointer;
-  padding: 4px;
+  clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
 }
 
-.vm-banner-dismiss:hover {
-  opacity: 1;
+.vm-banner-btn:hover {
+  transform: scale(1.05);
+  background: #4ade80;
 }
-
-.vm-banner-progress {
-  height: 2px;
-  margin-top: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.vm-banner-progress-bar {
-  height: 100%;
-  width: 30%;
-  background: #fbbf24;
-  border-radius: 2px;
-  animation: vmProgress 2s ease-in-out infinite;
-}
-
-@keyframes vmProgress {
-  0% { width: 0%; margin-left: 0; }
-  50% { width: 50%; }
-  100% { width: 0%; margin-left: 100%; }
-}
-
-.spin {
-  animation: spinRotate 1s linear infinite;
-}
-
-@keyframes spinRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-

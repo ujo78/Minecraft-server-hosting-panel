@@ -24,3 +24,6 @@ build/
 # Editor
 .vscode/
 .idea/
+
+__pycache__/
+*.pyc
