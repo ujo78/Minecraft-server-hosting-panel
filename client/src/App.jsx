@@ -111,28 +111,12 @@ function App() {
         setServerDropdownOpen(false);
     };
 
-    const sendControl = async (action) => {
+    const sendControl = (action) => {
         setControlLoading(true);
-        try {
-            const res = await fetch('/api/control', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action }),
-            });
-            const data = await res.json();
-            console.log('Control response:', data);
-            if (!res.ok) {
-                console.error('Control failed:', data);
-                alert(`Failed: ${data.error || data.message || 'Unknown error'}`);
-            } else if (data.executed === false) {
-                console.warn('Command not executed:', data.reason);
-            }
-        } catch (error) {
-            console.error('Failed to send control', error);
-            alert('Failed to reach the server. Is the Game VM running?');
-        } finally {
-            setControlLoading(false);
-        }
+        console.log('Sending command via socket:', action);
+        socket.emit('command', action);
+        // Status updates come back via the 'status' socket event
+        setTimeout(() => setControlLoading(false), 2000);
     };
 
     const handleStartVM = async () => {
