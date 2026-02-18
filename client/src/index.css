@@ -7,3 +7,122 @@ html, body {
   color: #e0e0e0;
   font-family: 'Inter', sans-serif;
 }
+
+/* ─── VM Status Banner ──────────────────────────────── */
+
+.vm-banner {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: vmSlideDown 0.3s ease-out;
+}
+
+@keyframes vmSlideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.vm-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vm-banner-stopped {
+  background: linear-gradient(135deg, #1e1e2e, #2d1f1f);
+  border-bottom: 1px solid #443333;
+  color: #ef9a9a;
+}
+
+.vm-banner-starting {
+  background: linear-gradient(135deg, #1e1e2e, #2d2a1f);
+  border-bottom: 1px solid #44403c;
+  color: #fbbf24;
+}
+
+.vm-banner-stopping {
+  background: linear-gradient(135deg, #1e1e2e, #2d2a1f);
+  border-bottom: 1px solid #44403c;
+  color: #fb923c;
+}
+
+.vm-banner-warning {
+  background: linear-gradient(135deg, #1e1e2e, #342a1f);
+  border-bottom: 1px solid #554422;
+  color: #f59e0b;
+}
+
+.vm-banner-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.vm-banner-btn-start {
+  background: #22c55e;
+  color: #000;
+}
+
+.vm-banner-btn-start:hover:not(:disabled) {
+  background: #16a34a;
+  transform: scale(1.02);
+}
+
+.vm-banner-btn-start:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.vm-banner-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.vm-banner-dismiss:hover {
+  opacity: 1;
+}
+
+.vm-banner-progress {
+  height: 2px;
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.vm-banner-progress-bar {
+  height: 100%;
+  width: 30%;
+  background: #fbbf24;
+  border-radius: 2px;
+  animation: vmProgress 2s ease-in-out infinite;
+}
+
+@keyframes vmProgress {
+  0% { width: 0%; margin-left: 0; }
+  50% { width: 50%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+
+.spin {
+  animation: spinRotate 1s linear infinite;
+}
+
+@keyframes spinRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+

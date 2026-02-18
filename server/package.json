@@ -1,23 +1,25 @@
 {
-  "name": "server",
+  "name": "minecraft-web-vm",
   "version": "1.0.0",
-  "description": "",
+  "description": "Web VM - lightweight proxy, auth, and Game VM lifecycle manager",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "archiver": "^7.0.1",
+    "@google-cloud/compute": "^4.8.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "diskusage": "^1.1.3",
+    "dotenv": "^16.4.7",
     "express": "^5.2.1",
-    "extract-zip": "^2.0.1",
-    "multer": "^2.0.2",
-    "nbt": "^0.8.1",
+    "http-proxy-middleware": "^3.0.3",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "socket.io": "^4.8.3",
-    "systeminformation": "^5.21.20"
+    "socket.io-client": "^4.8.3"
   }
 }

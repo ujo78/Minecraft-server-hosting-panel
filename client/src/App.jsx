@@ -14,6 +14,7 @@ import PropertiesEditor from './components/PropertiesEditor';
 import WhitelistManager from './components/WhitelistManager';
 import FileBrowser from './components/FileBrowser';
 import Login from './components/Login';
+import VMStatusBanner from './components/VMStatusBanner';
 
 const socket = io({
     withCredentials: true // Important for cookies!
@@ -26,10 +27,13 @@ function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [activeServerId, setActiveServerId] = useState(null);
+    const [vmStatus, setVmStatus] = useState('unknown');
+    const [agentReady, setAgentReady] = useState(false);
+    const [vmWarning, setVmWarning] = useState(null);
 
     // Initial Auth Check
     useEffect(() => {
-        fetch('/api/auth/me')
+        fetch('/auth/user')
             .then(res => {
                 if (res.ok) return res.json();
                 throw new Error('Not authenticated');
@@ -59,13 +63,32 @@ function App() {
             setStatus(newStatus);
         });
 
+        // VM lifecycle events
+        socket.on('vmStatus', (data) => {
+            setVmStatus(data.status);
+            if (data.agentReady !== undefined) setAgentReady(data.agentReady);
+            if (data.status === 'stopped') setVmWarning(null);
+        });
+
+        socket.on('vmWarning', (data) => {
+            setVmWarning(data);
+        });
+
         // Handle unauthorized socket event
         socket.on('connect_error', (err) => {
             console.log("Socket connection error", err);
         });
 
+        // Fetch initial VM status
+        fetch('/api/vm/status').then(r => r.json()).then(data => {
+            setVmStatus(data.vmStatus || 'unknown');
+            setAgentReady(data.agentReady || false);
+        }).catch(() => { });
+
         return () => {
             socket.off('status');
+            socket.off('vmStatus');
+            socket.off('vmWarning');
             socket.off('connect_error');
         };
     }, [user]); // Re-run when user logs in
@@ -77,12 +100,30 @@ function App() {
 
     const handleLogout = async () => {
         try {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            setUser(null);
-            setActiveTab('dashboard'); // Reset tab
+            window.location.href = '/auth/logout';
         } catch (err) {
             console.error("Logout failed", err);
         }
+    };
+
+    const handleStartVM = async () => {
+        setVmStatus('starting');
+        const res = await fetch('/api/vm/start', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            setVmStatus('running');
+            setAgentReady(data.agentReady);
+        }
+        return data;
+    };
+
+    const handleStopVM = async () => {
+        setVmStatus('stopping');
+        const res = await fetch('/api/vm/stop', { method: 'POST' });
+        const data = await res.json();
+        setVmStatus('stopped');
+        setAgentReady(false);
+        return data;
     };
 
     if (loading) {
@@ -168,6 +209,13 @@ function App() {
             </aside>
 
             <main className="flex-1 overflow-x-hidden overflow-y-auto bg-dark-900">
+                <VMStatusBanner
+                    vmStatus={vmStatus}
+                    agentReady={agentReady}
+                    warning={vmWarning}
+                    onStartVM={handleStartVM}
+                    onStopVM={handleStopVM}
+                />
                 <div className="md:hidden p-4 bg-dark-800 border-b border-dark-700 flex justify-between items-center">
                     <h1 className="text-lg font-bold text-white">
                         {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
@@ -190,8 +238,8 @@ function SidebarItem({ icon, label, active, onClick }) {
         <button
             onClick={onClick}
             className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-md transition-colors ${active
-                    ? 'bg-gradient-to-r from-mc-green/20 to-transparent text-mc-green border-r-2 border-mc-green'
-                    : 'text-gray-400 hover:bg-dark-700 hover:text-white'
+                ? 'bg-gradient-to-r from-mc-green/20 to-transparent text-mc-green border-r-2 border-mc-green'
+                : 'text-gray-400 hover:bg-dark-700 hover:text-white'
                 }`}
         >
             {icon}

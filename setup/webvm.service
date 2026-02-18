@@ -1,0 +1,16 @@
+[Unit]
+Description=Minecraft Web VM (Panel + Proxy)
+After=network.target
+
+[Service]
+Type=simple
+User=mcpanel
+WorkingDirectory=/home/mcpanel/minecraft-panel/server
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/home/mcpanel/minecraft-panel/server/.env
+
+[Install]
+WantedBy=multi-user.target
