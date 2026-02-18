@@ -33,10 +33,11 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.GAME_AGENT_PORT || 4000;
+const MCPANEL_DIR = process.env.MCPANEL_DIR || '/home/rajrakshit838/Mcpanel';
 
 // ─── Initialize Managers ──────────────────────────────────────
 
-const serverManager = new ServerManager(path.join(__dirname, 'config.json'));
+const serverManager = new ServerManager(path.join(__dirname, 'config.json'), MCPANEL_DIR);
 const backupManager = new BackupManager(path.join(__dirname, '../backups'));
 const modSearcher = new ModSearcher();
 
@@ -49,10 +50,17 @@ let SERVER_DIR = activeServer ? path.resolve(__dirname, activeServer.path) : nul
 let JAR_NAME = activeServer ? activeServer.jar : null;
 let mc = null;
 
+// Helper to resolve server paths (handles both absolute and relative)
+function resolveServerPath(srvPath, ...extra) {
+    const base = path.isAbsolute(srvPath) ? srvPath : path.resolve(__dirname, srvPath);
+    return extra.length > 0 ? path.join(base, ...extra) : base;
+}
+
 function initMinecraftHandler() {
     if (!activeServer) return null;
 
-    SERVER_DIR = path.resolve(__dirname, activeServer.path);
+    // Support both absolute paths (from Mcpanel/) and relative paths (legacy)
+    SERVER_DIR = path.isAbsolute(activeServer.path) ? activeServer.path : path.resolve(__dirname, activeServer.path);
     JAR_NAME = activeServer.jar;
 
     if (!fs.existsSync(SERVER_DIR)) {
@@ -153,82 +161,88 @@ app.get('/api/player-count', (req, res) => {
 
 app.post('/api/refresh-servers', (req, res) => {
     try {
-        const scanDirs = [
-            path.resolve(__dirname, '..'),  // parent directory
-            __dirname                        // game-server directory itself
-        ];
-
-        const startupPatterns = [
-            'run.sh', 'start.sh', 'startserver.sh', 'ServerStart.sh',
-            'start-server.sh', 'run-server.sh', 'launch.sh',
-            'run.bat', 'start.bat',
-            'server.jar', 'forge.jar', 'paper.jar', 'spigot.jar'
-        ];
-
-        const discovered = [];
-
-        for (const scanDir of scanDirs) {
-            if (!fs.existsSync(scanDir)) continue;
-
-            const entries = fs.readdirSync(scanDir, { withFileTypes: true });
-
-            for (const entry of entries) {
-                if (!entry.isDirectory()) continue;
-
-                // Skip known non-server directories
-                const skipDirs = ['node_modules', '.git', 'game-server', 'server', 'client', 'setup', 'available-servers', 'backups'];
-                if (skipDirs.includes(entry.name)) continue;
-
-                const dirPath = path.join(scanDir, entry.name);
-                const files = fs.readdirSync(dirPath);
-
-                // Check if this directory contains a valid Minecraft server
-                let foundStartup = null;
-                for (const pattern of startupPatterns) {
-                    if (files.includes(pattern)) {
-                        foundStartup = pattern;
-                        break;
-                    }
-                }
-
-                // Fallback: check for any .jar file
-                if (!foundStartup) {
-                    const jar = files.find(f => f.endsWith('.jar'));
-                    if (jar) foundStartup = jar;
-                }
-
-                if (foundStartup) {
-                    // Check if this server is already registered
-                    const existingServer = serverManager.getServers().find(s => {
-                        const existingPath = path.resolve(__dirname, s.path);
-                        return existingPath === dirPath;
-                    });
-
-                    discovered.push({
-                        directory: entry.name,
-                        path: dirPath,
-                        startupFile: foundStartup,
-                        alreadyRegistered: !!existingServer,
-                        registeredId: existingServer ? existingServer.id : null,
-                        hasEula: files.includes('eula.txt'),
-                        hasServerProperties: files.includes('server.properties'),
-                        hasMods: files.includes('mods'),
-                        hasPlugins: files.includes('plugins')
-                    });
-                }
-            }
-        }
-
+        const discovered = discoverServers();
         res.json({
             success: true,
             discovered,
-            registeredServers: serverManager.getServers().length
+            registeredServers: serverManager.getServers().length,
+            scanDirectory: MCPANEL_DIR
         });
     } catch (err) {
         console.error('Server discovery failed:', err);
         res.status(500).json({ error: err.message });
     }
 });
+
+// Helper: scan MCPANEL_DIR for valid server directories
+function discoverServers() {
+    const startupPatterns = [
+        'run.sh', 'start.sh', 'startserver.sh', 'ServerStart.sh',
+        'start-server.sh', 'run-server.sh', 'launch.sh',
+        'run.bat', 'start.bat',
+        'server.jar', 'forge.jar', 'paper.jar', 'spigot.jar'
+    ];
+
+    const discovered = [];
+
+    if (!fs.existsSync(MCPANEL_DIR)) {
+        console.warn(`⚠️ MCPANEL_DIR not found: ${MCPANEL_DIR}`);
+        return discovered;
+    }
+
+    const entries = fs.readdirSync(MCPANEL_DIR, { withFileTypes: true });
+
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        // Skip known non-server directories
+        const skipDirs = ['node_modules', '.git', 'backups'];
+        if (skipDirs.includes(entry.name)) continue;
+
+        const dirPath = path.join(MCPANEL_DIR, entry.name);
+        let files;
+        try {
+            files = fs.readdirSync(dirPath);
+        } catch (e) {
+            continue; // skip unreadable dirs
+        }
+
+        // Check if this directory contains a valid Minecraft server
+        let foundStartup = null;
+        for (const pattern of startupPatterns) {
+            if (files.includes(pattern)) {
+                foundStartup = pattern;
+                break;
+            }
+        }
+
+        // Fallback: check for any .jar file
+        if (!foundStartup) {
+            const jar = files.find(f => f.endsWith('.jar'));
+            if (jar) foundStartup = jar;
+        }
+
+        if (foundStartup) {
+            const existingServer = serverManager.getServers().find(s => {
+                return path.resolve(s.path) === dirPath || s.id === entry.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+            });
+
+            discovered.push({
+                directory: entry.name,
+                path: dirPath,
+                startupFile: foundStartup,
+                alreadyRegistered: !!existingServer,
+                registeredId: existingServer ? existingServer.id : null,
+                hasEula: files.includes('eula.txt'),
+                hasServerProperties: files.includes('server.properties'),
+                hasMods: files.includes('mods'),
+                hasPlugins: files.includes('plugins')
+            });
+        }
+    }
+
+    return discovered;
+}
 
 // Auto-register a discovered server
 app.post('/api/refresh-servers/register', (req, res) => {
@@ -238,19 +252,9 @@ app.post('/api/refresh-servers/register', (req, res) => {
             return res.status(400).json({ error: 'directory and name are required' });
         }
 
-        const scanDirs = [path.resolve(__dirname, '..'), __dirname];
-        let targetPath = null;
-
-        for (const scanDir of scanDirs) {
-            const candidate = path.join(scanDir, directory);
-            if (fs.existsSync(candidate)) {
-                targetPath = candidate;
-                break;
-            }
-        }
-
-        if (!targetPath) {
-            return res.status(404).json({ error: `Directory '${directory}' not found` });
+        const targetPath = path.join(MCPANEL_DIR, directory);
+        if (!fs.existsSync(targetPath)) {
+            return res.status(404).json({ error: `Directory '${directory}' not found in ${MCPANEL_DIR}` });
         }
 
         const files = fs.readdirSync(targetPath);
@@ -274,12 +278,11 @@ app.post('/api/refresh-servers/register', (req, res) => {
         }
 
         const id = directory.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-        const relativePath = path.relative(__dirname, targetPath);
 
         serverManager.addServer({
             id,
             name,
-            path: relativePath.startsWith('..') ? relativePath : `./${relativePath}`,
+            path: targetPath,  // absolute path
             jar: jarName,
             memory: memory || 2048,
             port: serverManager.findAvailablePort()
@@ -484,7 +487,7 @@ app.post('/api/servers/:id/backups', async (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const serverPath = path.resolve(__dirname, srv.path);
+        const serverPath = resolveServerPath(srv.path);
         const backup = await backupManager.createBackup(id, serverPath, name);
         res.json({ success: true, backup });
     } catch (err) {
@@ -518,7 +521,7 @@ app.post('/api/servers/:id/backups/:backupId/restore', async (req, res) => {
             return res.status(400).json({ error: 'Server must be offline to restore backup' });
         }
 
-        const serverPath = path.resolve(__dirname, srv.path);
+        const serverPath = resolveServerPath(srv.path);
         await backupManager.restoreBackup(id, backupId, serverPath);
         res.json({ success: true, message: 'Backup restored successfully' });
     } catch (err) {
@@ -594,7 +597,7 @@ app.get('/api/servers/:id/properties', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const propsPath = path.resolve(__dirname, srv.path, 'server.properties');
+        const propsPath = resolveServerPath(srv.path, 'server.properties');
         const properties = parseProperties(propsPath);
         res.json({ properties });
     } catch (err) {
@@ -610,7 +613,7 @@ app.put('/api/servers/:id/properties', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const propsPath = path.resolve(__dirname, srv.path, 'server.properties');
+        const propsPath = resolveServerPath(srv.path, 'server.properties');
         writeProperties(propsPath, properties);
         res.json({ success: true, message: 'Properties updated' });
     } catch (err) {
@@ -627,13 +630,13 @@ app.get('/api/servers/:id/whitelist', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const whitelistPath = path.resolve(__dirname, srv.path, 'whitelist.json');
+        const whitelistPath = resolveServerPath(srv.path, 'whitelist.json');
         let whitelist = [];
         if (fs.existsSync(whitelistPath)) {
             whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8'));
         }
 
-        const propsPath = path.resolve(__dirname, srv.path, 'server.properties');
+        const propsPath = resolveServerPath(srv.path, 'server.properties');
         const props = parseProperties(propsPath);
         const enabled = props['white-list'] === 'true';
 
@@ -659,7 +662,7 @@ app.post('/api/servers/:id/whitelist', async (req, res) => {
         const name = playerData.name;
         const formattedUuid = uuid.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
 
-        const whitelistPath = path.resolve(__dirname, srv.path, 'whitelist.json');
+        const whitelistPath = resolveServerPath(srv.path, 'whitelist.json');
         let whitelist = [];
         if (fs.existsSync(whitelistPath)) {
             whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8'));
@@ -689,7 +692,7 @@ app.delete('/api/servers/:id/whitelist/:username', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const whitelistPath = path.resolve(__dirname, srv.path, 'whitelist.json');
+        const whitelistPath = resolveServerPath(srv.path, 'whitelist.json');
         if (!fs.existsSync(whitelistPath)) {
             return res.status(404).json({ error: 'Whitelist not found' });
         }
@@ -722,7 +725,7 @@ app.put('/api/servers/:id/whitelist/toggle', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const propsPath = path.resolve(__dirname, srv.path, 'server.properties');
+        const propsPath = resolveServerPath(srv.path, 'server.properties');
         const props = parseProperties(propsPath);
         props['white-list'] = enabled ? 'true' : 'false';
         writeProperties(propsPath, props);
@@ -755,7 +758,7 @@ app.get('/api/servers/:id/files', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const serverPath = path.resolve(__dirname, srv.path);
+        const serverPath = resolveServerPath(srv.path);
         const fullPath = validatePath(serverPath, requestedPath);
 
         if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Path not found' });
@@ -788,7 +791,7 @@ app.get('/api/servers/:id/files/read', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const serverPath = path.resolve(__dirname, srv.path);
+        const serverPath = resolveServerPath(srv.path);
         const fullPath = validatePath(serverPath, requestedPath);
 
         if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
@@ -812,7 +815,7 @@ app.put('/api/servers/:id/files/write', (req, res) => {
         const srv = serverManager.getServer(id);
         if (!srv) return res.status(404).json({ error: 'Server not found' });
 
-        const serverPath = path.resolve(__dirname, srv.path);
+        const serverPath = resolveServerPath(srv.path);
         const fullPath = validatePath(serverPath, requestedPath);
 
         const ext = path.extname(fullPath);
@@ -1022,11 +1025,46 @@ app.post('/api/shutdown', async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🎮 Game Agent running on port ${PORT}`);
+    console.log(`📂 Scanning servers from: ${MCPANEL_DIR}`);
+
+    // Auto-discover and register servers on startup
+    try {
+        const discovered = discoverServers();
+        let registered = 0;
+        for (const srv of discovered) {
+            if (!srv.alreadyRegistered) {
+                const id = srv.directory.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                serverManager.addServer({
+                    id,
+                    name: srv.directory,
+                    path: srv.path,
+                    jar: srv.startupFile,
+                    memory: 2048,
+                    port: serverManager.findAvailablePort()
+                });
+                registered++;
+                console.log(`  ✅ Auto-registered: ${srv.directory} (${srv.startupFile})`);
+            } else {
+                console.log(`  📋 Already registered: ${srv.directory}`);
+            }
+        }
+        if (discovered.length === 0) {
+            console.log(`  ⚠️ No servers found in ${MCPANEL_DIR}`);
+        } else {
+            console.log(`  Found ${discovered.length} server(s), ${registered} newly registered`);
+        }
+    } catch (err) {
+        console.error('Auto-discovery failed:', err);
+    }
+
+    // Re-read active server after discovery
+    activeServer = serverManager.getActiveServer();
     if (activeServer) {
+        initMinecraftHandler();
         console.log(`Active server: ${activeServer.name} (${activeServer.id})`);
         console.log(`Server directory: ${SERVER_DIR}`);
     } else {
-        console.log('No active server configured. Use /api/refresh-servers to discover servers.');
+        console.log('No active server configured. Use the web panel to select one.');
     }
 }).on('error', (err) => {
     if (err.code === 'EADDRINUSE') {

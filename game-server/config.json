@@ -1,17 +1,6 @@
 {
-    "active": "stoneblock4",
-    "servers": [
-        {
-            "id": "stoneblock4",
-            "name": "StoneBlock 4",
-            "path": "../stoneblock4",
-            "jar": "run.sh",
-            "icon": "https://media.forgecdn.net/avatars/946/685/638426058093153303.png",
-            "memory": 1024,
-            "port": 25565,
-            "status": "offline"
-        }
-    ],
+    "active": null,
+    "servers": [],
     "portRange": {
         "start": 25565,
         "end": 25665

@@ -3,8 +3,9 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 class ServerManager {
-    constructor(configPath) {
+    constructor(configPath, serversBaseDir) {
         this.configPath = configPath;
+        this.serversBaseDir = serversBaseDir || path.resolve(__dirname, '..');
         this.config = this.loadConfig();
         this.availableServersDir = path.resolve(__dirname, '../available-servers');
     }
@@ -187,7 +188,7 @@ class ServerManager {
             throw new Error(`Template '${templateId}' not found in available-servers`);
         }
 
-        const serversDir = path.resolve(__dirname, '..');
+        const serversDir = this.serversBaseDir;
         const serverDir = path.join(serversDir, id);
 
         if (fs.existsSync(serverDir)) {
