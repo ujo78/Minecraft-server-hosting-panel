@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const net = require('net');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
@@ -33,7 +34,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.GAME_AGENT_PORT || 4000;
-const MCPANEL_DIR = process.env.MCPANEL_DIR || '/home/rajrakshit838/McPanel';
+const MCPANEL_DIR = process.env.MCPANEL_DIR || path.resolve(__dirname, '..');
 
 // ─── Initialize Managers ──────────────────────────────────────
 
@@ -55,6 +56,65 @@ function resolveServerPath(srvPath, ...extra) {
     const base = path.isAbsolute(srvPath) ? srvPath : path.resolve(__dirname, srvPath);
     return extra.length > 0 ? path.join(base, ...extra) : base;
 }
+
+// ─── Real-time Minecraft Port Probe ───────────────────────────
+// Attempts a raw TCP connection to the server port.
+// Returns true if a process is actually accepting connections.
+function probeMinecraftPort(port, timeoutMs = 2000) {
+    return new Promise((resolve) => {
+        if (!port) return resolve(false);
+        const socket = new net.Socket();
+        let resolved = false;
+
+        const done = (result) => {
+            if (!resolved) {
+                resolved = true;
+                socket.destroy();
+                resolve(result);
+            }
+        };
+
+        socket.setTimeout(timeoutMs);
+        socket.once('connect', () => done(true));
+        socket.once('error', () => done(false));
+        socket.once('timeout', () => done(false));
+        socket.connect(port, '127.0.0.1');
+    });
+}
+
+// ─── Status Reconciliation ────────────────────────────────────
+// Syncs in-memory status with the actual port probe result.
+// Handles externally started/stopped Minecraft processes.
+async function reconcileStatus() {
+    if (!activeServer) return;
+
+    const port = activeServer.port || 25565;
+    const portOpen = await probeMinecraftPort(port);
+    const memStatus = mc ? mc.status : 'offline';
+
+    // Server is actually online but panel thinks it's offline
+    if (portOpen && (memStatus === 'offline' || memStatus === 'crashed')) {
+        console.log(`🔄 Reconcile: port ${port} is open but status is '${memStatus}' — syncing to 'online'`);
+        if (mc) {
+            mc.status = 'online';
+        }
+        serverManager.updateServerStatus(activeServer.id, 'online');
+        io.emit('status', 'online');
+        io.emit('serverStatus', { id: activeServer.id, status: 'online' });
+    }
+
+    // Panel thinks it's online/starting but port is closed and no process
+    if (!portOpen && (memStatus === 'online' || memStatus === 'starting') && mc && !mc.process) {
+        console.log(`🔄 Reconcile: port ${port} is closed and no process — syncing to 'offline'`);
+        mc.status = 'offline';
+        serverManager.updateServerStatus(activeServer.id, 'offline');
+        io.emit('status', 'offline');
+        io.emit('serverStatus', { id: activeServer.id, status: 'offline' });
+    }
+}
+
+// Run reconciliation every 15 seconds
+setInterval(reconcileStatus, 15000);
 
 function initMinecraftHandler() {
     if (!activeServer) return null;
@@ -108,13 +168,21 @@ if (activeServer) {
 
 // ─── Socket.IO: Handle incoming commands from Web VM relay ────
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
     console.log('🔌 Web VM connected via Socket.IO');
 
-    // Send current status immediately
-    if (mc) {
-        socket.emit('status', mc.status || 'offline');
+    // Send a probed (real) status immediately on connect
+    const port = activeServer?.port || 25565;
+    const portOpen = await probeMinecraftPort(port, 1500);
+    let liveStatus;
+    if (portOpen) {
+        liveStatus = 'online';
+        // Sync in-memory so future checks are accurate
+        if (mc && mc.status !== 'online') mc.status = 'online';
+    } else {
+        liveStatus = (mc && mc.process) ? (mc.status || 'offline') : 'offline';
     }
+    socket.emit('status', liveStatus);
 
     socket.on('command', (cmd) => {
         console.log(`📨 Command received: ${cmd}`);
@@ -215,20 +283,7 @@ const modsStorage = multer.diskStorage({
 });
 const upload = multer({ storage: modsStorage });
 
-// ─── Socket.IO ────────────────────────────────────────────────
-
-io.on('connection', (socket) => {
-    console.log('Web VM connected via Socket.IO');
-    if (mc) {
-        socket.emit('status', mc.getStatus());
-    } else {
-        socket.emit('status', 'offline');
-    }
-
-    socket.on('command', (cmd) => {
-        if (mc) mc.command(cmd);
-    });
-});
+// (duplicate socket.io handler removed — handled at top of file)
 
 // ─── Health / Heartbeat ───────────────────────────────────────
 
@@ -432,8 +487,18 @@ app.post('/api/refresh-servers/register', (req, res) => {
 
 // ─── Server Status & Control ──────────────────────────────────
 
-app.get('/api/status', (req, res) => {
-    res.json({ status: mc ? mc.getStatus() : 'offline' });
+app.get('/api/status', async (req, res) => {
+    const port = activeServer?.port || 25565;
+    const portOpen = await probeMinecraftPort(port, 1500);
+    let status;
+    if (portOpen) {
+        status = 'online';
+        // Sync in-memory state
+        if (mc && mc.status !== 'online') mc.status = 'online';
+    } else {
+        status = (mc && mc.process) ? (mc.status || 'offline') : 'offline';
+    }
+    res.json({ status, probed: true, port });
 });
 
 app.post('/api/control', (req, res) => {
@@ -544,18 +609,36 @@ app.get('/api/servers', (req, res) => {
 app.post('/api/servers/switch', async (req, res) => {
     const { id, force } = req.body;
 
-    const currentStatus = mc ? mc.getStatus() : 'offline';
-    if (currentStatus !== 'offline' && currentStatus !== 'crashed' && !force) {
-        return res.status(400).json({ error: 'Server must be offline to switch' });
+    if (!id) return res.status(400).json({ error: 'Missing server id' });
+
+    // Use live TCP probe to determine actual state, not stale in-memory status
+    const port = activeServer?.port || 25565;
+    const portOpen = await probeMinecraftPort(port, 1500);
+    const actuallyRunning = portOpen || (mc && mc.process !== null);
+
+    if (actuallyRunning && !force) {
+        return res.status(400).json({
+            error: 'Server is currently running. Stop it first or switch with force=true.',
+            currentStatus: portOpen ? 'online' : mc?.status
+        });
     }
 
-    if (currentStatus !== 'offline' && mc) {
-        mc.stop();
+    // Stop the current server if it's still running
+    if (mc) {
+        if (mc.process) {
+            console.log('🛑 Force-stopping current server before switch...');
+            mc.stop();
+            // Give it a brief moment to initiate shutdown
+            await new Promise(r => setTimeout(r, 500));
+        }
+        mc.status = 'offline';
     }
 
     if (serverManager.setActiveServer(id)) {
         activeServer = serverManager.getActiveServer();
         initMinecraftHandler();
+        io.emit('status', 'offline');
+        io.emit('serverStatus', { id, status: 'offline' });
         res.json({ success: true, activeId: id });
     } else {
         res.status(404).json({ error: 'Server not found' });

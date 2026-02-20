@@ -1,6 +1,16 @@
 {
-    "active": null,
-    "servers": [],
+    "active": "stoneblock4",
+    "servers": [
+        {
+            "id": "stoneblock4",
+            "name": "StoneBlock 4",
+            "path": "C:\\Users\\rajra\\Desktop\\minecraft panel\\stoneblock4",
+            "jar": "server.jar",
+            "memory": 4096,
+            "port": 25565,
+            "status": "offline"
+        }
+    ],
     "portRange": {
         "start": 25565,
         "end": 25665

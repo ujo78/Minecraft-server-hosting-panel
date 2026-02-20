@@ -35,6 +35,7 @@ function App() {
     const [servers, setServers] = useState([]);
     const [serverDropdownOpen, setServerDropdownOpen] = useState(false);
     const [controlLoading, setControlLoading] = useState(false);
+    const [switchLoading, setSwitchLoading] = useState(false);
 
     // Auth check
     useEffect(() => {
@@ -71,10 +72,25 @@ function App() {
         });
         socket.on('vmWarning', setVmWarning);
 
-        fetch('/api/vm/status').then(r => r.json()).then(data => {
-            setVmStatus(data.vmStatus || 'unknown');
-            setAgentReady(data.agentReady || false);
-        }).catch(() => { });
+        // Fetch live status via REST (catches externally started servers)
+        const seedStatus = async () => {
+            try {
+                const [vmRes, gameRes] = await Promise.all([
+                    fetch('/api/vm/status'),
+                    fetch('/api/status')
+                ]);
+                if (vmRes.ok) {
+                    const d = await vmRes.json();
+                    setVmStatus(d.vmStatus || 'unknown');
+                    setAgentReady(d.agentReady || false);
+                }
+                if (gameRes.ok) {
+                    const d = await gameRes.json();
+                    if (d.status) setStatus(d.status);
+                }
+            } catch { /* ignore */ }
+        };
+        seedStatus();
 
         return () => {
             socket.off('status');
@@ -87,7 +103,16 @@ function App() {
 
     const handleServerSwitch = async (id) => {
         if (id === activeServerId) { setServerDropdownOpen(false); return; }
-        if (!confirm("Switch to this server? The current server will stop.")) return;
+
+        const isRunning = status === 'online' || status === 'starting';
+        const confirmMsg = isRunning
+            ? `The current server is running and will be stopped first. Switch to "${servers.find(s => s.id === id)?.name}"?`
+            : `Switch to "${servers.find(s => s.id === id)?.name}"?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        setServerDropdownOpen(false);
+        setSwitchLoading(true);
         try {
             const res = await fetch('/api/servers/switch', {
                 method: 'POST',
@@ -98,7 +123,6 @@ function App() {
             if (data.success) {
                 setActiveServerId(data.activeId);
                 setStatus('offline');
-                // Refresh server list
                 const srvRes = await fetch('/api/servers');
                 const srvData = await srvRes.json();
                 setServers(srvData.servers || []);
@@ -106,9 +130,10 @@ function App() {
                 alert(data.error);
             }
         } catch (err) {
-            alert("Failed to switch server");
+            alert('Failed to switch server');
+        } finally {
+            setSwitchLoading(false);
         }
-        setServerDropdownOpen(false);
     };
 
     const sendControl = (action) => {
@@ -251,10 +276,11 @@ function App() {
                                         <button
                                             key={srv.id}
                                             onClick={() => handleServerSwitch(srv.id)}
+                                            disabled={switchLoading}
                                             className={`w-full flex items-center gap-3 px-3 py-3 rounded border transition-all group relative overflow-hidden ${srv.id === activeServerId
                                                 ? 'bg-[#52eb34]/10 border-[#52eb34]/30'
                                                 : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'
-                                                }`}
+                                                } ${switchLoading ? 'opacity-60 cursor-wait' : ''}`}
                                         >
                                             <div className="relative">
                                                 <img
