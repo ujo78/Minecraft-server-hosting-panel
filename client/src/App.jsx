@@ -36,6 +36,7 @@ function App() {
     const [serverDropdownOpen, setServerDropdownOpen] = useState(false);
     const [controlLoading, setControlLoading] = useState(false);
     const [switchLoading, setSwitchLoading] = useState(false);
+    const [pendingSwitch, setPendingSwitch] = useState(null); // { id, name, isRunning }
 
     // Auth check
     useEffect(() => {
@@ -101,40 +102,45 @@ function App() {
 
     const activeServer = servers.find(s => s.id === activeServerId);
 
-    const handleServerSwitch = async (id) => {
-        if (id === activeServerId) { setServerDropdownOpen(false); return; }
-
+    // Step 1: open our custom in-page confirmation modal (no blocking confirm())
+    const handleServerSwitch = (id) => {
+        if (id === activeServerId || switchLoading) return;
         const isRunning = status === 'online' || status === 'starting';
-        const confirmMsg = isRunning
-            ? `The current server is running and will be stopped first. Switch to "${servers.find(s => s.id === id)?.name}"?`
-            : `Switch to "${servers.find(s => s.id === id)?.name}"?`;
-
-        if (!confirm(confirmMsg)) return;
-
+        const serverName = servers.find(s => s.id === id)?.name || id;
         setServerDropdownOpen(false);
+        setPendingSwitch({ id, name: serverName, isRunning });
+    };
+
+    // Step 2: user confirmed in the modal — now do the actual switch
+    const confirmSwitch = async () => {
+        if (!pendingSwitch) return;
+        const { id } = pendingSwitch;
+        setPendingSwitch(null);
         setSwitchLoading(true);
         try {
             const res = await fetch('/api/servers/switch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
+                body: JSON.stringify({ id, force: true }) // always force — backend stops Minecraft first
             });
             const data = await res.json();
-            if (data.success) {
+            if (res.ok && data.success) {
                 setActiveServerId(data.activeId);
                 setStatus('offline');
                 const srvRes = await fetch('/api/servers');
                 const srvData = await srvRes.json();
                 setServers(srvData.servers || []);
             } else {
-                alert(data.error);
+                // Show the real error from the server
+                alert(data.error || `Switch failed (${res.status})`);
             }
         } catch (err) {
-            alert('Failed to switch server');
+            alert(`Network error: ${err.message}`);
         } finally {
             setSwitchLoading(false);
         }
     };
+
 
     const sendControl = (action) => {
         setControlLoading(true);
@@ -459,6 +465,37 @@ function App() {
 
             {/* Background Overlay for Depth */}
             <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30 pointer-events-none z-[0] mix-blend-overlay"></div>
+
+            {/* ── Server Switch Confirmation Modal ── */}
+            {pendingSwitch && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                    <div className="glass-panel p-6 max-w-sm w-full mx-4 space-y-4">
+                        <h3 className="font-['VT323'] text-2xl text-white uppercase tracking-wide">
+                            Switch Server?
+                        </h3>
+                        <p className="text-sm text-gray-300">
+                            {pendingSwitch.isRunning
+                                ? <>The current server is <span className="text-amber-400 font-bold">running</span> and will be stopped first. Switch to <span className="text-[#52eb34] font-bold">{pendingSwitch.name}</span>?</>
+                                : <>Switch to <span className="text-[#52eb34] font-bold">{pendingSwitch.name}</span>?</>
+                            }
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => setPendingSwitch(null)}
+                                className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white rounded border border-white/10 transition-all font-bold text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmSwitch}
+                                className="flex-1 py-2 minecraft-btn minecraft-btn-primary !py-2 transition-all"
+                            >
+                                Confirm Switch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
