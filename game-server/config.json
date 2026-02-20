@@ -1,13 +1,44 @@
 {
-    "active": "stoneblock4",
+    "active": "cobbleverse",
     "servers": [
         {
-            "id": "stoneblock4",
-            "name": "StoneBlock 4",
-            "path": "C:\\Users\\rajra\\Desktop\\minecraft panel\\stoneblock4",
-            "jar": "server.jar",
-            "memory": 4096,
+            "id": "cobbleverse",
+            "name": "Cobbleverse",
+            "path": "../Cobbleverse",
+            "jar": "run.sh",
+            "icon": "https://media.forgecdn.net/avatars/1150/374/638717600534282700.png",
+            "memory": 6144,
             "port": 25565,
+            "status": "offline"
+        },
+        {
+            "id": "all-the-mons",
+            "name": "All the Mons",
+            "path": "../all-the-mons",
+            "jar": "run.sh",
+            "icon": "https://media.forgecdn.net/avatars/1052/843/638567419583660023.png",
+            "memory": 6144,
+            "port": 25566,
+            "status": "offline"
+        },
+        {
+            "id": "atm10tts",
+            "name": "ATM10: To The Sky",
+            "path": "../atm10tts",
+            "jar": "run.sh",
+            "icon": "https://media.forgecdn.net/avatars/1090/706/638634009499055758.png",
+            "memory": 8192,
+            "port": 25567,
+            "status": "offline"
+        },
+        {
+            "id": "cobblemon-academy",
+            "name": "Cobblemon Academy",
+            "path": "../cobblemon-academy",
+            "jar": "run.sh",
+            "icon": "https://media.forgecdn.net/avatars/1115/355/638671416539699920.png",
+            "memory": 6144,
+            "port": 25568,
             "status": "offline"
         }
     ],
