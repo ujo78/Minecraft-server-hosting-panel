@@ -37,7 +37,7 @@ const IS_LOCAL = process.env.NODE_ENV !== 'production';
 
 let vmManager;
 if (IS_LOCAL) {
-    console.log('🔧 Running in LOCAL mode — skipping GCP API calls');
+    console.log('🔧 Running in LOCAL mode — skipping Azure API calls');
     vmManager = VMManager.createLocal(process.env.GAME_AGENT_PORT || 4000);
 } else {
     vmManager = new VMManager();
@@ -88,18 +88,22 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.OAUTH_CALLBACK_URL || '/auth/google/callback',
-    proxy: true
-}, (accessToken, refreshToken, profile, done) => {
-    const email = profile.emails && profile.emails[0] ? profile.emails[0].value : '';
-    done(null, { id: profile.id, email, name: profile.displayName, photo: profile.photos?.[0]?.value });
-}));
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.OAUTH_CALLBACK_URL || '/auth/google/callback',
+        proxy: true
+    }, (accessToken, refreshToken, profile, done) => {
+        const email = profile.emails && profile.emails[0] ? profile.emails[0].value : '';
+        done(null, { id: profile.id, email, name: profile.displayName, photo: profile.photos?.[0]?.value });
+    }));
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+    passport.serializeUser((user, done) => done(null, user));
+    passport.deserializeUser((user, done) => done(null, user));
+} else {
+    console.warn('⚠️ Google OAuth credentials missing from .env. Authentication routes will fail if accessed.');
+}
 
 // Simple auth middleware using cookies
 function requireAuth(req, res, next) {
@@ -311,7 +315,7 @@ app.get('/{*path}', (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`\n🌐 Web VM running on port ${PORT}`);
-    console.log(`   Mode: ${IS_LOCAL ? 'LOCAL (Game Agent on localhost)' : 'PRODUCTION (GCP)'}`);
+    console.log(`   Mode: ${IS_LOCAL ? 'LOCAL (Game Agent on localhost)' : 'PRODUCTION (Azure)'}`);
     console.log(`   Game VM status: ${vmManager.status}`);
     if (vmManager.gameAgentUrl) {
         console.log(`   Game Agent URL: ${vmManager.gameAgentUrl}`);
