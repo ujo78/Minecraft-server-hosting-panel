@@ -1,22 +1,26 @@
-const { InstancesClient } = require('@google-cloud/compute');
+const { ComputeManagementClient } = require('@azure/arm-compute');
+const { DefaultAzureCredential } = require('@azure/identity');
 
 // ─── VM Manager ───────────────────────────────────────────────
-// Controls Game VM lifecycle via GCP Compute Engine API.
-// Requires: GCP_PROJECT_ID, GCP_ZONE, GCP_VM_NAME env vars.
-// Auth: uses Application Default Credentials (ADC).
+// Controls Game VM lifecycle via Azure Compute Resource Provider.
+// Requires: AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, AZURE_VM_NAME, GAME_VM_IP
+// Auth: Uses DefaultAzureCredential (pulls from AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET)
 // ──────────────────────────────────────────────────────────────
 
 class VMManager {
     constructor() {
-        this.projectId = process.env.GCP_PROJECT_ID;
-        this.zone = process.env.GCP_ZONE || 'us-central1-a';
-        this.vmName = process.env.GCP_VM_NAME || 'game-vm';
+        this.subscriptionId = process.env.AZURE_SUBSCRIPTION_ID;
+        this.resourceGroupName = process.env.AZURE_RESOURCE_GROUP || 'minecraft-rg';
+        this.vmName = process.env.AZURE_VM_NAME || 'game-vm';
         this.gameAgentPort = process.env.GAME_AGENT_PORT || 4000;
 
-        // Internal IP of the Game VM (set after first boot or via config)
+        // Internal IP of the Game VM in the VNet
         this.gameVmIp = process.env.GAME_VM_IP || null;
 
-        this.client = new InstancesClient();
+        // Initialize Azure Compute Client using standard env variables
+        const credential = new DefaultAzureCredential();
+        this.client = new ComputeManagementClient(credential, this.subscriptionId);
+
         this._status = 'unknown'; // 'running', 'stopped', 'starting', 'stopping', 'unknown'
         this._agentReady = false;
 
@@ -41,32 +45,40 @@ class VMManager {
 
     async getVMStatus() {
         try {
-            const [instance] = await this.client.get({
-                project: this.projectId,
-                zone: this.zone,
-                instance: this.vmName
-            });
+            // Get InstanceView to see the running state
+            const instanceView = await this.client.virtualMachines.instanceView(
+                this.resourceGroupName,
+                this.vmName
+            );
 
-            // GCP status: RUNNING, STOPPED, TERMINATED, STAGING, etc.
-            const gcpStatus = instance.status;
+            // Azure power states look like 'PowerState/running', 'PowerState/deallocated', etc.
+            const powerState = instanceView.statuses.find(s => s.code.startsWith('PowerState/'));
+            const provisioningState = instanceView.statuses.find(s => s.code.startsWith('ProvisioningState/'));
 
-            if (gcpStatus === 'RUNNING') {
+            if (!powerState) {
+                this._status = 'unknown';
+                return this._status;
+            }
+
+            const stateCode = powerState.code;
+
+            if (stateCode === 'PowerState/running') {
                 this._status = 'running';
-
-                // Update the internal IP if we don't have it
-                if (!this.gameVmIp && instance.networkInterfaces && instance.networkInterfaces.length > 0) {
-                    this.gameVmIp = instance.networkInterfaces[0].networkIP;
-                    console.log(`🔍 Game VM internal IP: ${this.gameVmIp}`);
-                }
-            } else if (gcpStatus === 'STOPPED' || gcpStatus === 'TERMINATED') {
+            } else if (stateCode === 'PowerState/deallocated' || stateCode === 'PowerState/stopped') {
                 this._status = 'stopped';
                 this._agentReady = false;
-            } else if (gcpStatus === 'STAGING' || gcpStatus === 'PROVISIONING') {
+            } else if (stateCode === 'PowerState/starting') {
                 this._status = 'starting';
-            } else if (gcpStatus === 'STOPPING' || gcpStatus === 'SUSPENDING') {
+            } else if (stateCode === 'PowerState/stopping') {
                 this._status = 'stopping';
             } else {
-                this._status = 'unknown';
+                // If it's something else or updating, fall back to provisioning state
+                if (provisioningState && provisioningState.code === 'ProvisioningState/Updating') {
+                    // could be starting or stopping, we use unknown as safe default
+                    this._status = 'unknown';
+                } else {
+                    this._status = 'unknown';
+                }
             }
 
             return this._status;
@@ -81,23 +93,24 @@ class VMManager {
 
     async startVM() {
         try {
-            console.log(`🟢 Starting Game VM "${this.vmName}"...`);
+            console.log(`🟢 Starting Game VM "${this.vmName}" in Resource Group "${this.resourceGroupName}"...`);
             this._status = 'starting';
             this._agentReady = false;
 
-            const [operation] = await this.client.start({
-                project: this.projectId,
-                zone: this.zone,
-                instance: this.vmName
-            });
+            // This command initiates the start and waits for the operation to complete
+            await this.client.virtualMachines.beginStartAndWait(
+                this.resourceGroupName,
+                this.vmName
+            );
 
-            // Wait for the GCP operation to complete
-            await operation.promise();
-
-            // Refresh status to get the IP
+            // Operations wait can take a bit, double check status
             await this.getVMStatus();
 
             console.log(`✅ Game VM started. Waiting for Game Agent to come online...`);
+
+            if (!this.gameVmIp) {
+                console.warn('⚠️ WARNING: GAME_VM_IP is not set in .env. Cannot contact Game Agent.');
+            }
 
             // Wait for the Game Agent to be ready
             const agentReady = await this.waitForAgent(120); // 2 min max
@@ -145,13 +158,11 @@ class VMManager {
             this._status = 'stopping';
             this._agentReady = false;
 
-            const [operation] = await this.client.stop({
-                project: this.projectId,
-                zone: this.zone,
-                instance: this.vmName
-            });
-
-            await operation.promise();
+            // Deallocate stops the compute charge
+            await this.client.virtualMachines.beginDeallocateAndWait(
+                this.resourceGroupName,
+                this.vmName
+            );
 
             this._status = 'stopped';
             console.log('✅ Game VM stopped (deallocated)');
@@ -168,9 +179,6 @@ class VMManager {
     async waitForAgent(timeoutSeconds = 120) {
         const start = Date.now();
         const timeout = timeoutSeconds * 1000;
-
-        // Refresh IP in case it changed
-        await this.getVMStatus();
 
         if (!this.gameVmIp) {
             console.error('No Game VM IP available');
@@ -262,7 +270,7 @@ class VMManager {
     }
 
     // ─── Local Dev Mode ───────────────────────────────────────
-    // For local development, skip GCP calls and assume the agent is on localhost
+    // For local development, skip Azure calls and assume the agent is on localhost
 
     static createLocal(port = 4000) {
         const vm = new VMManager();
@@ -271,7 +279,7 @@ class VMManager {
         vm.gameVmIp = '127.0.0.1';
         vm.gameAgentPort = port;
 
-        // Override GCP methods to no-ops
+        // Override Azure methods to no-ops
         vm.getVMStatus = async () => 'running';
         vm.startVM = async () => ({ success: true, status: 'running' });
         vm.stopVM = async () => ({ success: true, status: 'stopped' });

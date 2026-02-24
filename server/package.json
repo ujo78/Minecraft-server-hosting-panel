@@ -11,7 +11,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/compute": "^4.8.0",
+    "@azure/arm-compute": "^23.3.0",
+    "@azure/arm-network": "^36.0.0",
+    "@azure/identity": "^4.13.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
