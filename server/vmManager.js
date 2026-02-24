@@ -1,3 +1,7 @@
+if (!globalThis.crypto) {
+    globalThis.crypto = require('crypto').webcrypto || require('crypto');
+}
+
 const { ComputeManagementClient } = require('@azure/arm-compute');
 const { DefaultAzureCredential } = require('@azure/identity');
 

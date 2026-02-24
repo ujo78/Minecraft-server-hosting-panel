@@ -8,6 +8,11 @@ const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const path = require('path');
 require('dotenv').config();
 
+// Polyfill global crypto for Azure SDKs in older Node/PM2 environments
+if (!globalThis.crypto) {
+    globalThis.crypto = require('crypto').webcrypto || require('crypto');
+}
+
 const VMManager = require('./vmManager');
 const { createGameProxy } = require('./proxyMiddleware');
 const InactivityTimer = require('./inactivityTimer');
