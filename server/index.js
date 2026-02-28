@@ -15,6 +15,7 @@ if (!globalThis.crypto) {
 
 const VMManager = require('./vmManager');
 const { createGameProxy } = require('./proxyMiddleware');
+const AuthManager = require('./authManager');
 const InactivityTimer = require('./inactivityTimer');
 
 // ─── Web VM Server ────────────────────────────────────────────
@@ -208,8 +209,56 @@ app.post('/api/vm/stop', requireAuth, async (req, res) => {
     }
 });
 
+// ─── Local Auth (username/password) ──────────────────────────
+
+const authManager = new AuthManager(path.join(__dirname, 'users.json'));
+
+// First-time setup: creates the first admin account
+app.post('/api/auth/setup', async (req, res) => {
+    if (authManager.hasUsers()) {
+        return res.status(403).json({ error: 'Setup already completed. Please login.' });
+    }
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
+    try {
+        const token = await authManager.register(username, password, true); // first user = admin
+        res.cookie('user', JSON.stringify({ username, isAdmin: true }), {
+            httpOnly: false,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            sameSite: 'lax'
+        });
+        res.json({ success: true, user: { username, isAdmin: true }, token });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Login with username/password
+app.post('/api/auth/login', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
+    try {
+        const token = await authManager.login(username, password);
+        if (!token) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+        res.cookie('user', JSON.stringify({ username, isAdmin: true }), {
+            httpOnly: false,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            sameSite: 'lax'
+        });
+        res.json({ success: true, user: { username }, token });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Proxy All /api/* to Game VM ──────────────────────────────
-// This MUST come after the local routes (/api/vm/*, /auth/*)
+// This MUST come after the local routes (/api/vm/*, /auth/*, /api/auth/*)
 
 app.use(createGameProxy(vmManager, inactivityTimer));
 
