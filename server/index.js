@@ -209,6 +209,23 @@ app.post('/api/vm/stop', requireAuth, async (req, res) => {
     }
 });
 
+app.post('/api/vm/inactivity/toggle', requireAuth, (req, res) => {
+    try {
+        const { enabled } = req.body;
+        if (enabled) {
+            inactivityTimer.start();
+        } else {
+            inactivityTimer.stop();
+        }
+
+        const status = inactivityTimer.getStatus();
+        io.emit('inactivityStatus', status);
+        res.json({ success: true, inactivity: status });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Local Auth (username/password) ──────────────────────────
 
 const authManager = new AuthManager(path.join(__dirname, 'users.json'));

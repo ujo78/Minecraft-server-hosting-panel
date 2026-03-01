@@ -32,6 +32,7 @@ function App() {
     const [vmStatus, setVmStatus] = useState('unknown');
     const [agentReady, setAgentReady] = useState(false);
     const [vmWarning, setVmWarning] = useState(null);
+    const [inactivityStatus, setInactivityStatus] = useState(null);
     const [servers, setServers] = useState([]);
     const [serverDropdownOpen, setServerDropdownOpen] = useState(false);
     const [controlLoading, setControlLoading] = useState(false);
@@ -69,9 +70,13 @@ function App() {
         socket.on('vmStatus', (data) => {
             setVmStatus(data.status);
             if (data.agentReady !== undefined) setAgentReady(data.agentReady);
-            if (data.status === 'stopped') setVmWarning(null);
+            if (data.status === 'stopped') {
+                setVmWarning(null);
+                setInactivityStatus(prev => prev ? { ...prev, running: false } : null);
+            }
         });
         socket.on('vmWarning', setVmWarning);
+        socket.on('inactivityStatus', setInactivityStatus);
 
         // Fetch live status via REST (catches externally started servers)
         const seedStatus = async () => {
@@ -84,6 +89,7 @@ function App() {
                     const d = await vmRes.json();
                     setVmStatus(d.vmStatus || 'unknown');
                     setAgentReady(d.agentReady || false);
+                    if (d.inactivity) setInactivityStatus(d.inactivity);
                 }
                 if (gameRes.ok) {
                     const d = await gameRes.json();
@@ -97,6 +103,7 @@ function App() {
             socket.off('status');
             socket.off('vmStatus');
             socket.off('vmWarning');
+            socket.off('inactivityStatus');
         };
     }, [user]);
 
@@ -222,6 +229,7 @@ function App() {
                         vmStatus={vmStatus}
                         agentReady={agentReady}
                         warning={vmWarning}
+                        inactivityStatus={inactivityStatus}
                         onStartVM={handleStartVM}
                         onStopVM={handleStopVM}
                     />
