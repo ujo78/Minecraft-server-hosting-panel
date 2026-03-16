@@ -37,7 +37,7 @@ function App() {
     const [serverDropdownOpen, setServerDropdownOpen] = useState(false);
     const [controlLoading, setControlLoading] = useState(false);
     const [switchLoading, setSwitchLoading] = useState(false);
-    const [pendingSwitch, setPendingSwitch] = useState(null); // { id, name, isRunning }
+    const [pendingSwitch, setPendingSwitch] = useState(null); // { id, name }
 
     // Auth check
     useEffect(() => {
@@ -109,13 +109,26 @@ function App() {
 
     const activeServer = servers.find(s => s.id === activeServerId);
 
-    // Step 1: open our custom in-page confirmation modal (no blocking confirm())
+    // Step 1: gate by status, then open the confirmation modal
     const handleServerSwitch = (id) => {
         if (id === activeServerId || switchLoading) return;
-        const isRunning = status === 'online' || status === 'starting';
         const serverName = servers.find(s => s.id === id)?.name || id;
         setServerDropdownOpen(false);
-        setPendingSwitch({ id, name: serverName, isRunning });
+
+        // Block during transitional states — no modal, just a toast-style alert
+        if (status === 'starting' || status === 'stopping') {
+            alert('Please wait for the current server to finish working.');
+            return;
+        }
+
+        // Block if server is running — tell user to stop first
+        if (status === 'online') {
+            alert('Please stop the current server before switching.');
+            return;
+        }
+
+        // Server is offline/crashed — show confirmation modal
+        setPendingSwitch({ id, name: serverName });
     };
 
     // Step 2: user confirmed in the modal — now do the actual switch
@@ -128,7 +141,7 @@ function App() {
             const res = await fetch('/api/servers/switch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, force: true }) // always force — backend stops Minecraft first
+                body: JSON.stringify({ id })
             });
             const data = await res.json();
             if (res.ok && data.success) {
@@ -138,7 +151,6 @@ function App() {
                 const srvData = await srvRes.json();
                 setServers(srvData.servers || []);
             } else {
-                // Show the real error from the server
                 alert(data.error || `Switch failed (${res.status})`);
             }
         } catch (err) {
@@ -482,10 +494,7 @@ function App() {
                             Switch Server?
                         </h3>
                         <p className="text-sm text-gray-300">
-                            {pendingSwitch.isRunning
-                                ? <>The current server is <span className="text-amber-400 font-bold">running</span> and will be stopped first. Switch to <span className="text-[#52eb34] font-bold">{pendingSwitch.name}</span>?</>
-                                : <>Switch to <span className="text-[#52eb34] font-bold">{pendingSwitch.name}</span>?</>
-                            }
+                            Switch the active server to <span className="text-[#52eb34] font-bold">{pendingSwitch.name}</span>?
                         </p>
                         <div className="flex gap-3 pt-2">
                             <button

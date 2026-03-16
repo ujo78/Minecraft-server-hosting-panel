@@ -23,26 +23,9 @@ export default function ServerSelector({ activeServerId, onServerSwitch }) {
         fetchServers();
     }, [activeServerId]); // Refresh when active changes
 
-    const handleSwitch = async (id) => {
+    const handleSwitch = (id) => {
         if (id === activeServerId) return;
-
-        if (!confirm("Start this server? This will stop the current server.")) return;
-
-        try {
-            const res = await fetch('/api/servers/switch', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
-            });
-            const data = await res.json();
-            if (data.success) {
-                onServerSwitch(data.activeId);
-            } else {
-                alert(data.error);
-            }
-        } catch (err) {
-            alert("Failed to switch server");
-        }
+        onServerSwitch(id);
     };
 
     const handleDelete = async (e, id) => {

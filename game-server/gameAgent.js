@@ -372,7 +372,8 @@ function discoverServers() {
 
         if (foundStartup) {
             const existingServer = serverManager.getServers().find(s => {
-                return path.resolve(s.path) === dirPath || s.id === entry.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                const resolvedPath = path.isAbsolute(s.path) ? s.path : path.resolve(__dirname, s.path);
+                return resolvedPath === dirPath || s.id === entry.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
             });
 
             discovered.push({
@@ -607,30 +608,33 @@ app.get('/api/servers', (req, res) => {
 });
 
 app.post('/api/servers/switch', async (req, res) => {
-    const { id, force } = req.body;
+    const { id } = req.body;
 
     if (!id) return res.status(400).json({ error: 'Missing server id' });
 
-    // Use live TCP probe to determine actual state, not stale in-memory status
+    // Determine the real state of the current server
+    const mcStatus = mc ? mc.status : 'offline';
     const port = activeServer?.port || 25565;
     const portOpen = await probeMinecraftPort(port, 1500);
-    const actuallyRunning = portOpen || (mc && mc.process !== null);
 
-    if (actuallyRunning && !force) {
-        return res.status(400).json({
-            error: 'Server is currently running. Stop it first or switch with force=true.',
-            currentStatus: portOpen ? 'online' : mc?.status
+    // Block switch during transitional states (starting/stopping) — no override
+    if (mcStatus === 'starting' || mcStatus === 'stopping') {
+        return res.status(409).json({
+            error: 'Please wait for the current server to finish working.',
+            currentStatus: mcStatus
         });
     }
 
-    // Stop the current server if it's still running
+    // Block switch if the server is online — user must stop it first
+    if (portOpen || mcStatus === 'online') {
+        return res.status(409).json({
+            error: 'Please stop the current server before switching.',
+            currentStatus: 'online'
+        });
+    }
+
+    // Server is offline or crashed — safe to switch
     if (mc) {
-        if (mc.process) {
-            console.log('🛑 Force-stopping current server before switch...');
-            mc.stop();
-            // Give it a brief moment to initiate shutdown
-            await new Promise(r => setTimeout(r, 500));
-        }
         mc.status = 'offline';
     }
 
@@ -1334,6 +1338,35 @@ app.post('/api/shutdown', async (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🎮 Game Agent running on port ${PORT}`);
     console.log(`📂 Scanning servers from: ${MCPANEL_DIR}`);
+
+    // Prune config: remove servers whose directories or startup files no longer exist
+    try {
+        const existingServers = serverManager.getServers();
+        const toRemove = [];
+        for (const srv of existingServers) {
+            const resolvedPath = path.isAbsolute(srv.path) ? srv.path : path.resolve(__dirname, srv.path);
+            const dirExists = fs.existsSync(resolvedPath);
+            if (!dirExists) {
+                toRemove.push(srv);
+                console.log(`  🗑️ Removing "${srv.name}" (${srv.id}) — directory missing: ${resolvedPath}`);
+                continue;
+            }
+            // Check that the jar/startup file still exists
+            const jarPath = path.join(resolvedPath, srv.jar);
+            if (!fs.existsSync(jarPath)) {
+                toRemove.push(srv);
+                console.log(`  🗑️ Removing "${srv.name}" (${srv.id}) — startup file missing: ${srv.jar}`);
+            }
+        }
+        for (const srv of toRemove) {
+            serverManager.deleteServer(srv.id);
+        }
+        if (toRemove.length > 0) {
+            console.log(`  Pruned ${toRemove.length} invalid server(s) from config`);
+        }
+    } catch (err) {
+        console.error('Config pruning failed:', err);
+    }
 
     // Auto-discover and register servers on startup
     try {
