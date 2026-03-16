@@ -274,8 +274,58 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// ─── Server List & Switching (handled locally on Web VM) ─────
+// Reads game-server/config.json directly so it works even when
+// the Game VM / Game Agent is powered off.
+
+const ServerManager = require('../game-server/serverManager');
+const localServerManager = new ServerManager(
+    path.join(__dirname, '../game-server/config.json'),
+    path.resolve(__dirname, '..')
+);
+
+app.get('/api/servers', requireAuth, (req, res) => {
+    const servers = localServerManager.getServers();
+    const active = localServerManager.getActiveServer();
+    res.json({ servers, activeId: active ? active.id : null });
+});
+
+app.post('/api/servers/switch', requireAuth, async (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'Missing server id' });
+
+    // If Game Agent is running, forward to it (handles MC status checks)
+    if (vmManager.agentReady && vmManager.gameAgentUrl) {
+        try {
+            const agentRes = await fetch(`${vmManager.gameAgentUrl}/api/servers/switch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const data = await agentRes.json();
+            if (agentRes.ok && data.success) {
+                // Reload local config to stay in sync
+                localServerManager.config = localServerManager.loadConfig();
+            }
+            return res.status(agentRes.status).json(data);
+        } catch {
+            // Agent unreachable despite being marked ready — fall through to local switch
+        }
+    }
+
+    // Agent not running — switch locally (config.json on disk)
+    if (!localServerManager.getServer(id)) {
+        return res.status(404).json({ error: 'Server not found' });
+    }
+    if (localServerManager.setActiveServer(id)) {
+        res.json({ success: true, activeId: id });
+    } else {
+        res.status(500).json({ error: 'Failed to switch server' });
+    }
+});
+
 // ─── Proxy All /api/* to Game VM ──────────────────────────────
-// This MUST come after the local routes (/api/vm/*, /auth/*, /api/auth/*)
+// This MUST come after the local routes (/api/vm/*, /auth/*, /api/auth/*, /api/servers*)
 
 app.use(createGameProxy(vmManager, inactivityTimer));
 

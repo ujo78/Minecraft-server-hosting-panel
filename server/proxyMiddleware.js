@@ -12,6 +12,7 @@ function createGameProxy(vmManager, inactivityTimer) {
         '/api/vm/',           // VM lifecycle endpoints
         '/auth/',             // Authentication
         '/api/auth',          // Auth endpoints
+        '/api/servers',       // Server list & switching (handled locally)
     ];
 
     function isLocalRoute(path) {
