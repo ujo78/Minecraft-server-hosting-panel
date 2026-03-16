@@ -284,7 +284,21 @@ const localServerManager = new ServerManager(
     path.resolve(__dirname, '..')
 );
 
-app.get('/api/servers', requireAuth, (req, res) => {
+app.get('/api/servers', requireAuth, async (req, res) => {
+    // Prefer fetching from Game Agent (always fresh), fall back to local config
+    if (vmManager.agentReady && vmManager.gameAgentUrl) {
+        try {
+            const agentRes = await fetch(`${vmManager.gameAgentUrl}/api/servers`);
+            if (agentRes.ok) {
+                const data = await agentRes.json();
+                return res.json(data);
+            }
+        } catch {
+            // Agent unreachable despite being marked ready — fall through to local
+        }
+    }
+
+    // Fall back to local config (for when agent is down)
     const servers = localServerManager.getServers();
     const active = localServerManager.getActiveServer();
     res.json({ servers, activeId: active ? active.id : null });

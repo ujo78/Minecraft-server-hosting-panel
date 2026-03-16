@@ -1344,6 +1344,24 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`🎮 Game Agent running on port ${PORT}`);
     console.log(`📂 Scanning servers from: ${MCPANEL_DIR}`);
 
+    // Normalize paths: convert absolute paths to relative (../dirname) for consistency
+    try {
+        let normalized = 0;
+        for (const srv of serverManager.getServers()) {
+            if (path.isAbsolute(srv.path)) {
+                const dirName = path.basename(srv.path);
+                srv.path = `../${dirName}`;
+                normalized++;
+            }
+        }
+        if (normalized > 0) {
+            serverManager.saveConfig();
+            console.log(`  Normalized ${normalized} absolute path(s) to relative`);
+        }
+    } catch (err) {
+        console.error('Path normalization failed:', err);
+    }
+
     // Prune config: remove servers whose directories or startup files no longer exist
     try {
         const existingServers = serverManager.getServers();
