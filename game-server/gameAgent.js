@@ -331,6 +331,13 @@ function discoverServers() {
         'server.jar', 'forge.jar', 'paper.jar', 'spigot.jar'
     ];
 
+    // Skip project directories and other known non-server folders
+    const skipDirs = [
+        'node_modules', '.git', '.github', '.claude', '.agent',
+        'backups', 'available-servers',
+        'client', 'server', 'game-server', 'setup', 'docs', 'design-system'
+    ];
+
     const discovered = [];
 
     if (!fs.existsSync(MCPANEL_DIR)) {
@@ -342,9 +349,7 @@ function discoverServers() {
 
     for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-
-        // Skip known non-server directories
-        const skipDirs = ['node_modules', '.git', 'backups'];
+        if (entry.name.startsWith('.')) continue;
         if (skipDirs.includes(entry.name)) continue;
 
         const dirPath = path.join(MCPANEL_DIR, entry.name);
@@ -1381,7 +1386,7 @@ server.listen(PORT, '0.0.0.0', () => {
                 serverManager.addServer({
                     id,
                     name: srv.directory,
-                    path: srv.path,
+                    path: `../${srv.directory}`,
                     jar: srv.startupFile,
                     memory: actualMemory,
                     port: serverManager.findAvailablePort()
