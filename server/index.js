@@ -6,7 +6,7 @@ const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const MicrosoftStrategy = require('passport-microsoft').Strategy;
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Polyfill global crypto for Azure SDKs in older Node/PM2 environments
 if (!globalThis.crypto) {
