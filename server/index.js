@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const passport = require('passport');
-const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
+const MicrosoftStrategy = require('passport-microsoft').Strategy;
 const path = require('path');
 require('dotenv').config();
 
@@ -21,9 +21,9 @@ const InactivityTimer = require('./inactivityTimer');
 // ─── Web VM Server ────────────────────────────────────────────
 // Lightweight proxy that runs 24/7 on the Web VM.
 // - Serves the React frontend
-// - Handles authentication (Google OAuth)
+// - Handles authentication (Microsoft OAuth)
 // - Proxies API calls to Game VM
-// - Manages Game VM lifecycle (start/stop via GCP)
+// - Manages Game VM lifecycle (start/stop via Azure)
 // - Tracks dual inactivity (web + Minecraft players)
 // ──────────────────────────────────────────────────────────────
 
@@ -90,15 +90,17 @@ app.set('trust proxy', 1);
 // Serve React frontend (production build)
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
-// ─── Google OAuth ─────────────────────────────────────────────
+// ─── Microsoft OAuth ─────────────────────────────────────────
 
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
 
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    passport.use(new GoogleStrategy({
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.OAUTH_CALLBACK_URL || '/auth/google/callback',
+if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
+    passport.use(new MicrosoftStrategy({
+        clientID: process.env.MICROSOFT_CLIENT_ID,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+        callbackURL: process.env.OAUTH_CALLBACK_URL || '/auth/microsoft/callback',
+        scope: ['user.read'],
+        tenant: process.env.MICROSOFT_TENANT_ID || 'common',
         proxy: true
     }, (accessToken, refreshToken, profile, done) => {
         const email = profile.emails && profile.emails[0] ? profile.emails[0].value : '';
@@ -108,7 +110,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.serializeUser((user, done) => done(null, user));
     passport.deserializeUser((user, done) => done(null, user));
 } else {
-    console.warn('⚠️ Google OAuth credentials missing from .env. Authentication routes will fail if accessed.');
+    console.warn('⚠️ Microsoft OAuth credentials missing from .env. Authentication routes will fail if accessed.');
 }
 
 // Simple auth middleware using cookies
@@ -125,12 +127,12 @@ function requireAuth(req, res, next) {
     }
 }
 
-app.get('/auth/google',
-    passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+app.get('/auth/microsoft',
+    passport.authenticate('microsoft', { session: false })
 );
 
-app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/', session: false }),
+app.get('/auth/microsoft/callback',
+    passport.authenticate('microsoft', { failureRedirect: '/', session: false }),
     (req, res) => {
         if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(req.user.email)) {
             return res.redirect('/?error=unauthorized');
