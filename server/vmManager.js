@@ -21,9 +21,16 @@ class VMManager {
         // Internal IP of the Game VM in the VNet
         this.gameVmIp = process.env.GAME_VM_IP || null;
 
-        // Initialize Azure Compute Client using standard env variables
-        const credential = new DefaultAzureCredential();
-        this.client = new ComputeManagementClient(credential, this.subscriptionId);
+        // Initialize Azure Compute Client using standard env variables (only if subscriptionId exists)
+        this.client = null;
+        if (this.subscriptionId) {
+            try {
+                const credential = new DefaultAzureCredential();
+                this.client = new ComputeManagementClient(credential, this.subscriptionId);
+            } catch (err) {
+                console.warn('⚠️ Failed to initialize Azure client:', err.message);
+            }
+        }
 
         this._status = 'unknown'; // 'running', 'stopped', 'starting', 'stopping', 'unknown'
         this._agentReady = false;
@@ -48,6 +55,12 @@ class VMManager {
     // ─── VM Status ────────────────────────────────────────────
 
     async getVMStatus() {
+        // If Azure client not initialized, return unknown
+        if (!this.client) {
+            this._status = 'unknown';
+            return this._status;
+        }
+
         try {
             // Get InstanceView to see the running state
             const instanceView = await this.client.virtualMachines.instanceView(
@@ -96,6 +109,11 @@ class VMManager {
     // ─── Start VM ─────────────────────────────────────────────
 
     async startVM() {
+        // If Azure client not available, can't start
+        if (!this.client) {
+            throw new Error('Azure client not initialized. Cannot control Game VM.');
+        }
+
         try {
             console.log(`🟢 Starting Game VM "${this.vmName}" in Resource Group "${this.resourceGroupName}"...`);
             this._status = 'starting';
@@ -140,6 +158,11 @@ class VMManager {
     // ─── Stop VM ──────────────────────────────────────────────
 
     async stopVM() {
+        // If Azure client not available, can't stop
+        if (!this.client) {
+            throw new Error('Azure client not initialized. Cannot control Game VM.');
+        }
+
         try {
             console.log(`🔴 Stopping Game VM "${this.vmName}"...`);
 
