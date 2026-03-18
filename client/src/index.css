@@ -8,24 +8,22 @@
 :root {
   /* ─── Colors ─── */
   --mc-green: #52eb34;
-  --mc-green-dim: rgba(82, 235, 52, 0.2);
-  --mc-brown: #5d4037;
-  --mc-brown-dim: rgba(93, 64, 55, 0.3);
-  --mc-bg: #0c0c0c;
-  --mc-surface: rgba(20, 20, 20, 0.7);
-  --mc-text-main: #e0e0e0;
-  --mc-text-dim: #a0a0a0;
+  --mc-green-dim: rgba(82, 235, 52, 0.15);
+  --mc-bg: #030803;
+  --mc-surface: rgba(10, 24, 12, 0.5);
+  --mc-text-main: #f0fdf4;
+  --mc-text-dim: #86efac;
 
   /* ─── Blur ─── */
-  --glass-blur: blur(10px);
+  --glass-blur: blur(20px);
 }
 
 html,
 body {
   background-color: var(--mc-bg);
   background-image:
-    radial-gradient(circle at 15% 50%, rgba(82, 235, 52, 0.03) 0%, transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(93, 64, 55, 0.05) 0%, transparent 25%);
+    radial-gradient(circle at 15% 50%, rgba(82, 235, 52, 0.05) 0%, transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(82, 235, 52, 0.03) 0%, transparent 25%);
   color: var(--mc-text-main);
   font-family: 'Rajdhani', sans-serif;
   overflow-x: hidden;
@@ -46,43 +44,57 @@ h6 {
 .glass-panel {
   background: var(--mc-surface);
   backdrop-filter: var(--glass-blur);
-  border-top: 2px solid var(--mc-green);
-  border-bottom: 4px solid var(--mc-brown);
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(82, 235, 52, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .minecraft-btn {
-  font-family: 'VT323', monospace;
+  font-family: 'Rajdhani', sans-serif;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  font-size: 1.2rem;
-  padding: 8px 20px;
-  background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
-  border: 2px solid #000;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.1), 0 4px 0 #000;
+  letter-spacing: 2px;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 10px 24px;
+  background: rgba(10, 24, 12, 0.6);
+  border: 1px solid rgba(82, 235, 52, 0.3);
+  border-radius: 8px;
   color: #fff;
-  transition: all 0.1s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
   position: relative;
   cursor: pointer;
+  overflow: hidden;
+}
+
+.minecraft-btn:hover {
+  background: rgba(82, 235, 52, 0.1);
+  border-color: rgba(82, 235, 52, 0.8);
+  box-shadow: 0 0 20px rgba(82, 235, 52, 0.15);
+  transform: translateY(-2px);
 }
 
 .minecraft-btn:active {
-  transform: translateY(4px);
-  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.2), 0 0 0 #000;
+  transform: translateY(0);
 }
 
 .minecraft-btn-primary {
-  background: linear-gradient(180deg, #52eb34 0%, #3aa324 100%);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
-  color: #000;
+  background: rgba(82, 235, 52, 0.15);
+  border-color: rgba(82, 235, 52, 0.5);
+  color: var(--mc-green);
 }
 
 .minecraft-btn-danger {
-  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.minecraft-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
 }
 
 .pixel-corners {
@@ -94,17 +106,17 @@ h6 {
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar {
-  width: 10px;
-  background: #1a1a1a;
+  width: 8px;
+  background: var(--mc-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--mc-brown);
-  border: 2px solid #1a1a1a;
+  background: rgba(82, 235, 52, 0.2);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #795548;
+  background: rgba(82, 235, 52, 0.4);
 }
 
 /* ─── VM Banner (Rethemed) ─── */
@@ -154,18 +166,23 @@ h6 {
 }
 
 .vm-banner-btn {
-  font-family: 'VT323', monospace;
-  font-size: 1.1rem;
-  letter-spacing: 0.5px;
-  background: var(--mc-green);
-  color: #000;
-  border: none;
-  padding: 4px 12px;
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 0.9rem;
+  background: rgba(82, 235, 52, 0.2);
+  color: var(--mc-green);
+  border: 1px solid rgba(82, 235, 52, 0.5);
+  border-radius: 6px;
+  padding: 6px 16px;
   cursor: pointer;
-  clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
 }
 
 .vm-banner-btn:hover {
-  transform: scale(1.05);
-  background: #4ade80;
+  background: rgba(82, 235, 52, 0.3);
+  box-shadow: 0 0 15px rgba(82, 235, 52, 0.2);
+  transform: translateY(-1px);
 }

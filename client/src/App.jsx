@@ -17,6 +17,9 @@ import WhitelistManager from './components/WhitelistManager';
 import FileBrowser from './components/FileBrowser';
 import Login from './components/Login';
 import VMStatusBanner from './components/VMStatusBanner';
+import FluidGlass from './components/ReactBits/FluidGlass';
+import TargetCursor from './components/ReactBits/TargetCursor';
+import BounceCards from './components/ReactBits/BounceCards';
 
 const socket = io({
     withCredentials: true
@@ -234,6 +237,35 @@ function App() {
 
     return (
         <div className="flex flex-col h-screen text-gray-200 overflow-hidden font-sans selection:bg-green-500/30">
+            {/* Global Target Cursor */}
+            <TargetCursor 
+              spinDuration={2}
+              hideDefaultCursor={false}
+              parallaxOn={true}
+              hoverDuration={0.2}
+            />
+
+            {/* FluidGlass Background */}
+            <div className="fixed inset-0 z-0 pointer-events-none opacity-80 mix-blend-screen">
+              <FluidGlass 
+                mode="lens"
+                scale={0.25}
+                ior={1.15}
+                thickness={2}
+                transmission={1}
+                roughness={0}
+                chromaticAberration={0.05}
+                anisotropy={0.01}
+                lensProps={{
+                  scale: 0.25,
+                  ior: 1.15,
+                  thickness: 5,
+                  chromaticAberration: 0.1,
+                  anisotropy: 0.01  
+                }}
+              />
+            </div>
+
             {/* VM Status Banner - Floating & Glass */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl pointer-events-none">
                 <div className="pointer-events-auto">
@@ -292,47 +324,33 @@ function App() {
 
                     {serverDropdownOpen && (
                         <>
-                            <div className="fixed inset-0 z-40" onClick={() => setServerDropdownOpen(false)} />
-                            <div className="absolute top-full left-0 mt-2 w-80 glass-panel z-50 overflow-hidden flex flex-col">
-                                <div className="p-3 bg-black/20 border-b border-white/5">
-                                    <span className="text-xs font-['VT323'] text-[#52eb34] uppercase text-lg">Select Server</span>
+                            <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center cursor-default" onClick={() => setServerDropdownOpen(false)}>
+                                <h3 className="text-4xl font-['VT323'] text-[#52eb34] mb-12 uppercase tracking-widest drop-shadow-[0_0_15px_rgba(82,235,52,0.8)]">Select A Server</h3>
+                                <div onClick={(e) => e.stopPropagation()} className="relative flex justify-center w-full max-w-4xl px-4">
+                                    {servers.length > 0 ? (
+                                        <BounceCards
+                                            className="custom-bounceCards scale-110 sm:scale-125 md:scale-150"
+                                            images={servers.map(s => s.icon || `https://via.placeholder.com/400/030803/52eb34?text=${encodeURIComponent(s.name)}`)}
+                                            containerWidth={600}
+                                            containerHeight={300}
+                                            animationDelay={0.1}
+                                            animationStagger={0.08}
+                                            easeType="elastic.out(1, 0.5)"
+                                            transformStyles={
+                                                servers.map((_, i) => {
+                                                    const baseOffset = (i - Math.floor(servers.length / 2)) * 80;
+                                                    const rot = (i - Math.floor(servers.length / 2)) * 4;
+                                                    return `rotate(${rot}deg) translate(${baseOffset}px)`;
+                                                })
+                                            }
+                                            enableHover={true}
+                                            onCardClick={(idx) => handleServerSwitch(servers[idx].id)}
+                                        />
+                                    ) : (
+                                        <div className="text-gray-400 font-mono">No servers available.</div>
+                                    )}
                                 </div>
-                                <div className="max-h-80 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                                    {servers.map(srv => (
-                                        <button
-                                            key={srv.id}
-                                            onClick={() => handleServerSwitch(srv.id)}
-                                            disabled={switchLoading}
-                                            className={`w-full flex items-center gap-3 px-3 py-3 rounded border transition-all group relative overflow-hidden ${srv.id === activeServerId
-                                                ? 'bg-[#52eb34]/10 border-[#52eb34]/30'
-                                                : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'
-                                                } ${switchLoading ? 'opacity-60 cursor-wait' : ''}`}
-                                        >
-                                            <div className="relative">
-                                                <img
-                                                    src={srv.icon || 'https://via.placeholder.com/32'}
-                                                    alt=""
-                                                    className={`w-10 h-10 rounded object-cover ${srv.id !== activeServerId ? 'opacity-70 grayscale' : 'ring-2 ring-[#52eb34]'}`}
-                                                />
-                                                {srv.id === activeServerId && (
-                                                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#52eb34] rounded-full border-2 border-black animate-pulse shadow-[0_0_10px_#52eb34]" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1 text-left min-w-0 z-10">
-                                                <div className={`text-base font-bold font-['VT323'] uppercase tracking-wide ${srv.id === activeServerId ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
-                                                    {srv.name}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                    <span className="bg-black/30 px-1.5 py-0.5 rounded text-gray-400">
-                                                        {srv.memory ? `${(srv.memory / 1024).toFixed(1)}GB` : '2GB'}
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span className="font-mono">:{srv.port || 25565}</span>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
+                                <div className="absolute bottom-10 animate-bounce text-gray-400 text-sm font-mono tracking-widest">CLICK ANYWHERE TO DISMISS</div>
                             </div>
                         </>
                     )}
@@ -483,8 +501,7 @@ function App() {
                 </main>
             </div>
 
-            {/* Background Overlay for Depth */}
-            <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-30 pointer-events-none z-[0] mix-blend-overlay"></div>
+            {/* Background Overlay for Depth removed because FluidGlass handles it */}
 
             {/* ── Server Switch Confirmation Modal ── */}
             {pendingSwitch && (
