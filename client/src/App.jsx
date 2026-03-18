@@ -256,7 +256,7 @@ function App() {
             {/* FluidGlass Background - wrapped in error boundary for missing .glb files */}
             <GlassBoundary>
               <Suspense fallback={null}>
-                <div className="fixed inset-0 z-0 w-full h-full pointer-events-none opacity-60">
+                <div className="fixed inset-0 -z-10 w-full h-full pointer-events-none opacity-60">
                   <FluidGlass 
                     mode="lens"
                     lensProps={{
