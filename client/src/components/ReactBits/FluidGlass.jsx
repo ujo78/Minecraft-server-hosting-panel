@@ -20,27 +20,19 @@ export default function FluidGlass({ mode = 'lens', lensProps = {}, barProps = {
   const rawOverrides = mode === 'bar' ? barProps : mode === 'cube' ? cubeProps : lensProps;
 
   const {
-    navItems = [
-      { label: 'Home', link: '' },
-      { label: 'About', link: '' },
-      { label: 'Contact', link: '' }
-    ],
+    navItems,
     ...modeProps
   } = rawOverrides;
 
   return (
-    <Canvas camera={{ position: [0, 0, 20], fov: 15 }} gl={{ alpha: true }}>
-      <ScrollControls damping={0.2} pages={3} distance={0.4}>
-        {mode === 'bar' && <NavItems items={navItems} />}
-        <Wrapper modeProps={modeProps}>
-          <Scroll>
-            {/* <Typography /> We don't want the default typography */}
-            <Images />
-          </Scroll>
-          <Scroll html />
-          <Preload />
-        </Wrapper>
-      </ScrollControls>
+    <Canvas
+      camera={{ position: [0, 0, 20], fov: 15 }}
+      gl={{ alpha: true }}
+      style={{ background: 'transparent' }}
+    >
+      <Wrapper modeProps={modeProps}>
+        <Preload />
+      </Wrapper>
     </Canvas>
   );
 }
@@ -90,8 +82,8 @@ const ModeWrapper = memo(function ModeWrapper({
     gl.render(scene, camera);
     gl.setRenderTarget(null);
 
-    // Background Color - Using a deep neon-style green/black base to match "Green Glass"
-    gl.setClearColor(0x0a1005, 1);
+    // Keep background transparent so app content shows through
+    gl.setClearColor(0x000000, 0);
   });
 
   const { scale, ior, thickness, anisotropy, chromaticAberration, ...extraMat } = modeProps;

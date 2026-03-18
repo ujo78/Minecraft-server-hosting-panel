@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import io from 'socket.io-client';
 import {
     Terminal, HardDrive, Play, Square, Settings, Menu, Users, BarChart2,
@@ -20,6 +20,14 @@ import VMStatusBanner from './components/VMStatusBanner';
 import FluidGlass from './components/ReactBits/FluidGlass';
 import TargetCursor from './components/ReactBits/TargetCursor';
 import BounceCards from './components/ReactBits/BounceCards';
+
+// Error boundary to gracefully handle FluidGlass crashes (e.g. missing .glb models)
+class GlassBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false }; }
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(err) { console.warn('[FluidGlass] Failed to load:', err.message); }
+    render() { return this.state.hasError ? null : this.props.children; }
+}
 
 const socket = io({
     withCredentials: true
@@ -245,26 +253,23 @@ function App() {
               hoverDuration={0.2}
             />
 
-            {/* FluidGlass Background */}
-            <div className="fixed inset-0 z-0 pointer-events-none opacity-80 mix-blend-screen">
-              <FluidGlass 
-                mode="lens"
-                scale={0.25}
-                ior={1.15}
-                thickness={2}
-                transmission={1}
-                roughness={0}
-                chromaticAberration={0.05}
-                anisotropy={0.01}
-                lensProps={{
-                  scale: 0.25,
-                  ior: 1.15,
-                  thickness: 5,
-                  chromaticAberration: 0.1,
-                  anisotropy: 0.01  
-                }}
-              />
-            </div>
+            {/* FluidGlass Background - wrapped in error boundary for missing .glb files */}
+            <GlassBoundary>
+              <Suspense fallback={null}>
+                <div className="fixed inset-0 z-0 pointer-events-none opacity-60">
+                  <FluidGlass 
+                    mode="lens"
+                    lensProps={{
+                      scale: 0.25,
+                      ior: 1.15,
+                      thickness: 5,
+                      chromaticAberration: 0.1,
+                      anisotropy: 0.01  
+                    }}
+                  />
+                </div>
+              </Suspense>
+            </GlassBoundary>
 
             {/* VM Status Banner - Floating & Glass */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl pointer-events-none">
