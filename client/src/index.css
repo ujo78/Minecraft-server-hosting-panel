@@ -27,6 +27,12 @@ body {
   color: var(--mc-text-main);
   font-family: 'Rajdhani', sans-serif;
   overflow-x: hidden;
+  cursor: none !important;
+}
+
+/* Force hide native cursor on ALL elements */
+*, *::before, *::after {
+  cursor: none !important;
 }
 
 h1,
