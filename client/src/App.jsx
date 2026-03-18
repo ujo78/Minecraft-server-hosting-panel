@@ -248,7 +248,7 @@ function App() {
             {/* Global Target Cursor */}
             <TargetCursor 
               spinDuration={2}
-              hideDefaultCursor={false}
+              hideDefaultCursor={true}
               parallaxOn={true}
               hoverDuration={0.2}
             />
