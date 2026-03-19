@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Lock, Server } from 'lucide-react';
+import TargetCursor from './ReactBits/TargetCursor';
 
 const Login = ({ onLogin }) => {
     const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Setup
@@ -48,6 +49,12 @@ const Login = ({ onLogin }) => {
 
     return (
         <div className="min-h-screen bg-dark-900 flex items-center justify-center p-4">
+            <TargetCursor 
+              spinDuration={2}
+              hideDefaultCursor={true}
+              parallaxOn={true}
+              hoverDuration={0.2}
+            />
             <div className="bg-dark-800 p-8 rounded-lg shadow-2xl w-full max-w-md border border-dark-700">
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-mc-green/10 mb-4">
