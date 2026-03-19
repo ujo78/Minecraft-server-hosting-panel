@@ -128,7 +128,7 @@ export default function BackupManager({ serverId }) {
                 >
                     {creating ? (
                         <>
-                            <div className="w-4 h-4 border-2 border-mc-green border-t-transparent rounded-full animate-spin" />
+                            <div className="w-4 h-4 border-2 border-[#00f0ff] border-t-transparent rounded-full animate-spin" />
                             Creating...
                         </>
                     ) : (
@@ -141,15 +141,16 @@ export default function BackupManager({ serverId }) {
             </div>
 
             {stats && (
-                <div className="bg-dark-800 border border-dark-700 rounded-lg p-4">
+                <div className="sci-fi-panel p-4">
+                    <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
                     <div className="flex gap-4 text-sm">
                         <div>
-                            <span className="text-gray-400">Total Backups:</span>
-                            <span className="text-white font-bold ml-2">{stats.totalBackups}</span>
+                            <span className="text-gray-400 uppercase text-xs tracking-wider">Total Backups:</span>
+                            <span className="text-[#00f0ff] font-bold ml-2 font-['VT323'] text-lg">{stats.totalBackups}</span>
                         </div>
                         <div>
-                            <span className="text-gray-400">Total Size:</span>
-                            <span className="text-white font-bold ml-2">{stats.totalSizeFormatted}</span>
+                            <span className="text-gray-400 uppercase text-xs tracking-wider">Total Size:</span>
+                            <span className="text-[#b829dd] font-bold ml-2 font-['VT323'] text-lg">{stats.totalSizeFormatted}</span>
                         </div>
                     </div>
                 </div>
@@ -163,13 +164,13 @@ export default function BackupManager({ serverId }) {
             )}
 
             {loading ? (
-                <div className="text-center py-8 text-gray-400">
-                    <div className="w-8 h-8 border-2 border-mc-green border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <div className="text-center py-8 text-[#00f0ff]">
+                    <div className="w-8 h-8 border-2 border-[#00f0ff] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     Loading backups...
                 </div>
             ) : backups.length === 0 ? (
-                <div className="bg-dark-800 border border-dark-700 rounded-lg p-8 text-center">
-                    <HardDrive className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                <div className="sci-fi-panel p-8 text-center">
+                    <HardDrive className="w-12 h-12 text-[#00f0ff]/30 mx-auto mb-3" />
                     <p className="text-gray-400 mb-1">No backups yet</p>
                     <p className="text-gray-500 text-sm">Create your first backup to protect your server data</p>
                 </div>
@@ -178,27 +179,28 @@ export default function BackupManager({ serverId }) {
                     {backups.map((backup) => (
                         <div
                             key={backup.id}
-                            className="bg-dark-800 border border-dark-700 hover:border-dark-600 rounded-lg p-4 transition-colors"
+                            className="sci-fi-panel p-4 hover:border-[#00f0ff]/50 transition-colors"
                         >
+                            <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
                             <div className="flex items-center justify-between">
                                 <div className="flex-1">
-                                    <h3 className="text-white font-bold">{backup.name}</h3>
-                                    <div className="flex gap-3 text-xs text-gray-400 mt-1">
-                                        <span>📅 {formatDate(backup.date)}</span>
-                                        <span>💾 {formatSize(backup.size)}</span>
+                                    <h3 className="text-white font-bold font-['VT323'] text-xl">{backup.name}</h3>
+                                    <div className="flex gap-3 text-xs text-gray-400 mt-1 font-mono">
+                                        <span className="text-[#00f0ff]">{formatDate(backup.date)}</span>
+                                        <span className="text-[#b829dd]">{formatSize(backup.size)}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => handleDownload(backup.id)}
-                                        className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
+                                        className="p-2 text-[#00f0ff] hover:bg-[#00f0ff]/10 rounded-lg transition-colors"
                                         title="Download backup"
                                     >
                                         <Download className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => handleRestore(backup.id)}
-                                        className="p-2 text-mc-green hover:bg-mc-green/10 rounded-lg transition-colors"
+                                        className="p-2 text-[#52eb34] hover:bg-[#52eb34]/10 rounded-lg transition-colors"
                                         title="Restore backup"
                                     >
                                         <RotateCcw className="w-4 h-4" />

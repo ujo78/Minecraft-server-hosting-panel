@@ -129,15 +129,15 @@ export default function ModManager({ serverId }) {
 
     return (
         <div className="space-y-6">
-            <div className="flex border-b border-dark-700">
+            <div className="flex border-b border-[#00f0ff]/20">
                 <button
-                    className={`px-4 py-2 font-medium ${activeTab === 'My Mods' ? 'text-mc-green border-b-2 border-mc-green' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-4 py-2 font-medium uppercase tracking-wider ${activeTab === 'My Mods' ? 'text-[#00f0ff] border-b-2 border-[#00f0ff]' : 'text-gray-400 hover:text-white'}`}
                     onClick={() => setActiveTab('My Mods')}
                 >
                     My Mods
                 </button>
                 <button
-                    className={`px-4 py-2 font-medium ${activeTab === 'Search' ? 'text-mc-green border-b-2 border-mc-green' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-4 py-2 font-medium uppercase tracking-wider ${activeTab === 'Search' ? 'text-[#00f0ff] border-b-2 border-[#00f0ff]' : 'text-gray-400 hover:text-white'}`}
                     onClick={() => setActiveTab('Search')}
                 >
                     Search Mods
@@ -147,18 +147,18 @@ export default function ModManager({ serverId }) {
             {activeTab === 'My Mods' && (
                 <div className="space-y-4">
                     {loading ? (
-                        <div className="text-gray-400">Loading installed mods...</div>
+                        <div className="text-[#00f0ff] animate-pulse">Loading installed mods...</div>
                     ) : installedMods.length === 0 ? (
-                        <div className="text-gray-500 text-center py-8">
-                            <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <div className="text-gray-500 text-center py-8 sci-fi-panel p-8">
+                            <Package className="w-12 h-12 mx-auto mb-2 opacity-50 text-[#00f0ff]" />
                             <p>No mods found in /mods folder.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-2">
                             {installedMods.map(mod => (
-                                <div key={mod.name} className="bg-dark-800 p-3 rounded flex justify-between items-center">
+                                <div key={mod.name} className="sci-fi-panel p-3 flex justify-between items-center">
                                     <span className="text-white font-medium">{mod.name}</span>
-                                    <span className="text-gray-500 text-sm">{(mod.size / 1024 / 1024).toFixed(2)} MB</span>
+                                    <span className="text-[#00f0ff] text-sm font-mono">{(mod.size / 1024 / 1024).toFixed(2)} MB</span>
                                 </div>
                             ))}
                         </div>
@@ -174,22 +174,23 @@ export default function ModManager({ serverId }) {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search Modrinth..."
-                            className="flex-1 bg-dark-900 border border-dark-600 rounded px-4 py-2 text-white focus:outline-none focus:border-mc-green"
+                            className="flex-1 bg-black/50 border border-[#00f0ff]/30 rounded px-4 py-2 text-white focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                         />
-                        <button type="submit" className="bg-mc-green text-black px-4 py-2 rounded font-bold hover:bg-green-500">
-                            Search
+                        <button type="submit" className="minecraft-btn minecraft-btn-primary">
+                            <Search className="w-4 h-4 mr-2" /> Search
                         </button>
                     </form>
 
-                    {error && <div className="text-red-400">{error}</div>}
+                    {error && <div className="text-red-400 bg-red-500/10 border border-red-500/30 rounded p-3">{error}</div>}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {searchResults.map(mod => (
-                            <div key={mod.slug} className="bg-dark-800 border border-dark-700 rounded p-4 hover:border-dark-600 transition-colors">
+                            <div key={mod.slug} className="sci-fi-panel p-4 hover:border-[#00f0ff]/50 transition-colors">
+                                <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
                                 <div className="flex gap-3 mb-2">
-                                    {mod.iconUrl && <img src={mod.iconUrl} alt="" className="w-10 h-10 rounded" />}
+                                    {mod.iconUrl && <img src={mod.iconUrl} alt="" className="w-10 h-10 rounded border border-[#00f0ff]/20" />}
                                     <div>
-                                        <h3 className="font-bold text-white text-lg">{mod.name}</h3>
+                                        <h3 className="font-bold text-white text-lg font-['VT323']">{mod.name}</h3>
                                         <div className="text-xs text-gray-400">by {mod.author} • {mod.downloads.toLocaleString()} downloads</div>
                                     </div>
                                 </div>
@@ -197,7 +198,7 @@ export default function ModManager({ serverId }) {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => installMod(mod)}
-                                        className="flex-1 bg-dark-700 hover:bg-dark-600 text-white py-2 rounded text-sm font-medium flex items-center justify-center gap-2"
+                                        className="minecraft-btn minecraft-btn-primary flex-1 py-2 text-sm flex items-center justify-center gap-2"
                                     >
                                         <Download className="w-4 h-4" /> Install Latest
                                     </button>
@@ -205,7 +206,7 @@ export default function ModManager({ serverId }) {
                                         href={mod.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="p-2 text-gray-400 hover:text-white"
+                                        className="p-2 text-gray-400 hover:text-[#00f0ff] transition-colors"
                                     >
                                         <ExternalLink className="w-5 h-5" />
                                     </a>

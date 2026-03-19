@@ -101,9 +101,10 @@ export default function PluginManager({ serverId }) {
 
     return (
         <div className="space-y-6">
-            <div className="bg-dark-800 p-4 rounded-lg border border-dark-700">
-                <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                    <Download className="w-5 h-5" /> Install Plugin (Direct URL)
+            <div className="sci-fi-panel p-4">
+                <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
+                <h3 className="text-white font-bold mb-4 flex items-center gap-2 font-['VT323'] uppercase">
+                    <Download className="w-5 h-5 text-[#00f0ff]" /> Install Plugin
                 </h3>
                 <form onSubmit={handleInstall} className="flex gap-2">
                     <input
@@ -111,42 +112,43 @@ export default function PluginManager({ serverId }) {
                         value={installUrl}
                         onChange={(e) => setInstallUrl(e.target.value)}
                         placeholder="https://example.com/plugin.jar"
-                        className="flex-1 bg-dark-900 border border-dark-600 rounded px-4 py-2 text-white focus:outline-none focus:border-mc-green"
+                        className="flex-1 bg-black/50 border border-[#00f0ff]/30 rounded px-4 py-2 text-white focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                     />
-                    <button type="submit" className="bg-mc-green text-black px-4 py-2 rounded font-bold hover:bg-green-500">
+                    <button type="submit" className="minecraft-btn minecraft-btn-primary">
                         Install
                     </button>
                 </form>
                 <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
+                    <AlertCircle className="w-3 h-3 text-[#fbbf24]" />
                     Ensure you trust the source URL. Only .jar files are supported.
                 </div>
             </div>
 
             <div className="space-y-4">
-                <h3 className="text-white font-bold text-lg">Installed Plugins ({plugins.length})</h3>
+                <h3 className="text-white font-bold text-lg font-['VT323'] uppercase tracking-wide">Installed Plugins ({plugins.length})</h3>
 
                 {loading ? (
-                    <div className="text-gray-400">Loading plugins...</div>
+                    <div className="text-[#00f0ff] animate-pulse">Loading plugins...</div>
                 ) : plugins.length === 0 ? (
                     <div className="text-gray-500 italic">No plugins installed.</div>
                 ) : (
                     <div className="grid grid-cols-1 gap-2">
                         {plugins.map(plugin => (
-                            <div key={plugin.filename} className={`bg-dark-800 p-4 rounded border-l-4 flex justify-between items-center ${plugin.enabled ? 'border-mc-green' : 'border-red-500'}`}>
+                            <div key={plugin.filename} className={`sci-fi-panel p-4 border-l-4 flex justify-between items-center ${plugin.enabled ? 'border-l-[#52eb34]' : 'border-l-red-500'}`}>
+                                <div className="corner-accent corner-accent-tl" style={{width: '10px', height: '10px'}}></div>
                                 <div>
-                                    <h4 className={`font-bold ${plugin.enabled ? 'text-white' : 'text-gray-400'}`}>
+                                    <h4 className={`font-bold font-['VT323'] text-lg ${plugin.enabled ? 'text-white' : 'text-gray-400'}`}>
                                         {plugin.name}
                                         {!plugin.enabled && <span className="ml-2 text-xs bg-red-500/20 text-red-500 px-2 py-0.5 rounded">DISABLED</span>}
                                     </h4>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-500 font-mono">
                                         {(plugin.size / 1024).toFixed(1)} KB • Modified: {new Date(plugin.modified).toLocaleDateString()}
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => togglePlugin(plugin.name, plugin.enabled)}
-                                        className={`p-2 rounded hover:bg-dark-700 ${plugin.enabled ? 'text-green-500' : 'text-gray-400'}`}
+                                        className={`p-2 rounded hover:bg-white/10 ${plugin.enabled ? 'text-[#52eb34]' : 'text-gray-400'}`}
                                         title={plugin.enabled ? "Disable" : "Enable"}
                                     >
                                         <Power className="w-5 h-5" />

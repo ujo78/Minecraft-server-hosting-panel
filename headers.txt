@@ -1,0 +1,21 @@
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Access-Control-Allow-Origin: *
+Age: 137379
+Cache-Control: public, max-age=0, must-revalidate
+Content-Disposition: inline
+Content-Length: 116300
+Content-Type: text/html; charset=utf-8
+Date: Thu, 19 Mar 2026 07:51:08 GMT
+Etag: "821c223185486dd8bea1087b9fb0bc78"
+Server: Vercel
+Strict-Transport-Security: max-age=63072000
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+X-Clerk-Auth-Reason: dev-browser-missing
+X-Clerk-Auth-Status: signed-out
+X-Matched-Path: /
+X-Nextjs-Prerender: 1
+X-Nextjs-Stale-Time: 300
+X-Vercel-Cache: HIT
+X-Vercel-Id: bom1::g72jw-1773906668145-39f6b2d6ece3
+

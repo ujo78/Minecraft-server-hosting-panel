@@ -91,18 +91,18 @@ export default function WhitelistManager({ serverId }) {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-mc-green" />
+                <h2 className="text-xl font-bold text-white flex items-center gap-2 font-['VT323'] uppercase">
+                    <Shield className="w-5 h-5 text-[#00f0ff]" />
                     Whitelist
                 </h2>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer group">
                     <input
                         type="checkbox"
                         checked={enabled}
                         onChange={handleToggle}
-                        className="w-5 h-5 rounded bg-dark-900 border-dark-600 text-mc-green focus:ring-mc-green"
+                        className="w-5 h-5 rounded bg-black/50 border-[#00f0ff]/30 text-[#00f0ff] focus:ring-[#00f0ff] focus:ring-offset-0"
                     />
-                    <span className="text-white font-medium">Enabled</span>
+                    <span className="text-white font-medium uppercase text-sm tracking-wider group-hover:text-[#00f0ff] transition-colors">Enabled</span>
                 </label>
             </div>
 
@@ -112,13 +112,13 @@ export default function WhitelistManager({ serverId }) {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Enter username..."
-                    className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mc-green"
+                    className="flex-1 bg-black/50 border border-[#00f0ff]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                     disabled={adding}
                 />
                 <button
                     type="submit"
                     disabled={adding || !username.trim()}
-                    className="bg-mc-green text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-green-500 disabled:opacity-50"
+                    className="minecraft-btn minecraft-btn-primary disabled:opacity-50"
                 >
                     <UserPlus className="w-4 h-4" />
                     {adding ? 'Adding...' : 'Add'}
@@ -132,10 +132,11 @@ export default function WhitelistManager({ serverId }) {
                 </div>
             )}
 
-            <div className="bg-dark-800 border border-dark-700 rounded-lg p-4">
-                <h3 className="text-white font-bold mb-3">Whitelisted Players ({whitelist.length})</h3>
+            <div className="sci-fi-panel p-4">
+                <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
+                <h3 className="text-white font-bold mb-3 font-['VT323'] text-xl">Whitelisted Players ({whitelist.length})</h3>
                 {loading ? (
-                    <div className="text-center py-4 text-gray-400">Loading...</div>
+                    <div className="text-center py-4 text-[#00f0ff]">Loading...</div>
                 ) : whitelist.length === 0 ? (
                     <div className="text-center py-4 text-gray-500 text-sm">No players whitelisted</div>
                 ) : (
@@ -143,9 +144,9 @@ export default function WhitelistManager({ serverId }) {
                         {whitelist.map(player => (
                             <div
                                 key={player.uuid}
-                                className="flex items-center justify-between bg-dark-900 rounded-lg p-3"
+                                className="flex items-center justify-between bg-black/40 rounded-lg p-3 border border-[#00f0ff]/10"
                             >
-                                <span className="text-white">👤 {player.name}</span>
+                                <span className="text-white font-mono">{player.name}</span>
                                 <button
                                     onClick={() => handleRemove(player.name)}
                                     className="text-red-400 hover:bg-red-400/10 p-2 rounded-lg transition-colors"

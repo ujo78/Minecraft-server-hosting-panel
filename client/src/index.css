@@ -3,27 +3,40 @@
 @tailwind utilities;
 
 /* ─── Fonts ─── */
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=VT323&family=Fira+Code:wght@300;400;500;600&display=swap');
 
 :root {
-  /* ─── Colors ─── */
+  /* ─── Sci-Fi Color Palette ─── */
   --mc-green: #52eb34;
   --mc-green-dim: rgba(82, 235, 52, 0.15);
-  --mc-bg: #030803;
+  --mc-bg: #0a0a0f;
   --mc-surface: rgba(10, 24, 12, 0.5);
   --mc-text-main: #f0fdf4;
   --mc-text-dim: #86efac;
 
+  /* Sci-Fi Accent Colors */
+  --sci-fi-cyan: #00f0ff;
+  --sci-fi-cyan-dim: rgba(0, 240, 255, 0.15);
+  --sci-fi-purple: #b829dd;
+  --sci-fi-purple-dim: rgba(184, 41, 221, 0.15);
+  --sci-fi-amber: #fbbf24;
+  --sci-fi-red: #ef4444;
+
   /* ─── Blur ─── */
   --glass-blur: blur(20px);
+  --sci-fi-glow: 0 0 20px rgba(0, 240, 255, 0.3);
+  --sci-fi-glow-purple: 0 0 20px rgba(184, 41, 221, 0.3);
 }
 
 html,
 body {
   background-color: var(--mc-bg);
   background-image:
-    radial-gradient(circle at 15% 50%, rgba(82, 235, 52, 0.05) 0%, transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(82, 235, 52, 0.03) 0%, transparent 25%);
+    radial-gradient(circle at 15% 50%, rgba(0, 240, 255, 0.03) 0%, transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(184, 41, 221, 0.03) 0%, transparent 25%),
+    linear-gradient(180deg, rgba(0, 240, 255, 0.01) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.01) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
   color: var(--mc-text-main);
   font-family: 'Rajdhani', sans-serif;
   overflow-x: hidden;
@@ -42,19 +55,119 @@ h4,
 h5,
 h6 {
   font-family: 'VT323', monospace;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
-/* ─── Utility Classes ─── */
-
-.glass-panel {
-  background: var(--mc-surface);
+/* ─── Sci-Fi Panel ─── */
+.sci-fi-panel {
+  background: linear-gradient(135deg, rgba(10, 15, 20, 0.9) 0%, rgba(5, 8, 12, 0.95) 100%);
   backdrop-filter: var(--glass-blur);
-  border: 1px solid rgba(82, 235, 52, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 30px rgba(0, 240, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.sci-fi-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sci-fi-cyan), transparent);
+  opacity: 0.5;
+}
+
+.sci-fi-panel-purple {
+  border-color: rgba(184, 41, 221, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 30px rgba(184, 41, 221, 0.05);
+}
+
+.sci-fi-panel-purple::before {
+  background: linear-gradient(90deg, transparent, var(--sci-fi-purple), transparent);
+}
+
+/* ─── Glass Panel (Legacy - Updated) ─── */
+.glass-panel {
+  background: linear-gradient(135deg, rgba(10, 15, 20, 0.8) 0%, rgba(5, 8, 12, 0.9) 100%);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(0, 240, 255, 0.15);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+/* ─── Sci-Fi Button ─── */
+.sci-fi-btn {
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.1) 0%, rgba(0, 240, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 8px;
+  color: var(--sci-fi-cyan);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+
+.sci-fi-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.sci-fi-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(0, 240, 255, 0.1) 100%);
+  border-color: var(--sci-fi-cyan);
+  box-shadow: var(--sci-fi-glow);
+  transform: translateY(-2px);
+}
+
+.sci-fi-btn:hover::before {
+  left: 100%;
+}
+
+.sci-fi-btn:active {
+  transform: translateY(0);
+}
+
+.sci-fi-btn-primary {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(0, 240, 255, 0.1) 100%);
+  border-color: rgba(0, 240, 255, 0.6);
+  color: var(--sci-fi-cyan);
+}
+
+.sci-fi-btn-danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--sci-fi-red);
+}
+
+.sci-fi-btn-danger:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.1) 100%);
+  border-color: var(--sci-fi-red);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+/* ─── Legacy Minecraft Button (Updated Colors) ─── */
 .minecraft-btn {
   font-family: 'Rajdhani', sans-serif;
   text-transform: uppercase;
@@ -62,21 +175,20 @@ h6 {
   font-weight: 600;
   font-size: 1rem;
   padding: 10px 24px;
-  background: rgba(10, 24, 12, 0.6);
-  border: 1px solid rgba(82, 235, 52, 0.3);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.1) 0%, rgba(0, 240, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.3);
   border-radius: 8px;
   color: #fff;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(8px);
   position: relative;
-  cursor: pointer;
   overflow: hidden;
 }
 
 .minecraft-btn:hover {
-  background: rgba(82, 235, 52, 0.1);
-  border-color: rgba(82, 235, 52, 0.8);
-  box-shadow: 0 0 20px rgba(82, 235, 52, 0.15);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.15) 0%, rgba(0, 240, 255, 0.08) 100%);
+  border-color: rgba(0, 240, 255, 0.6);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
   transform: translateY(-2px);
 }
 
@@ -85,22 +197,145 @@ h6 {
 }
 
 .minecraft-btn-primary {
-  background: rgba(82, 235, 52, 0.15);
-  border-color: rgba(82, 235, 52, 0.5);
-  color: var(--mc-green);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(0, 240, 255, 0.1) 100%);
+  border-color: rgba(0, 240, 255, 0.5);
+  color: var(--sci-fi-cyan);
 }
 
 .minecraft-btn-danger {
-  background: rgba(239, 68, 68, 0.1);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%);
   border-color: rgba(239, 68, 68, 0.4);
-  color: #ef4444;
+  color: var(--sci-fi-red);
 }
 
 .minecraft-btn-danger:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.8);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+  border-color: rgba(239, 68, 68, 0.6);
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
   color: #fca5a5;
+}
+
+/* ─── Status Indicators ─── */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.5;
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.status-online { background: var(--mc-green); color: var(--mc-green); box-shadow: 0 0 10px var(--mc-green); }
+.status-offline { background: var(--sci-fi-red); color: var(--sci-fi-red); }
+.status-warning { background: var(--sci-fi-amber); color: var(--sci-fi-amber); }
+.status-starting { background: var(--sci-fi-cyan); color: var(--sci-fi-cyan); animation: pulse 1s ease-in-out infinite; }
+
+/* ─── Data Grid ─── */
+.data-grid {
+  display: grid;
+  gap: 1px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.data-grid > * {
+  background: rgba(10, 15, 20, 0.9);
+  padding: 12px;
+}
+
+/* ─── Hexagon Icon ─── */
+.hex-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(0, 240, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%);
+}
+
+/* ─── Power Meter Progress ─── */
+.power-meter {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.power-meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--sci-fi-cyan), var(--sci-fi-purple));
+  border-radius: 3px;
+  position: relative;
+  transition: width 0.5s ease;
+}
+
+.power-meter-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-20px); }
+  100% { transform: translateX(20px); }
+}
+
+/* ─── Scanline Effect ─── */
+.scanlines::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.3;
+}
+
+/* ─── Holographic Border ─── */
+.holo-border {
+  position: relative;
+}
+
+.holo-border::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--sci-fi-cyan), var(--sci-fi-purple), var(--sci-fi-cyan));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
 }
 
 .pixel-corners {
@@ -117,22 +352,25 @@ h6 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(82, 235, 52, 0.2);
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.3), rgba(184, 41, 221, 0.3));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(82, 235, 52, 0.4);
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.5), rgba(184, 41, 221, 0.5));
 }
 
-/* ─── VM Banner (Rethemed) ─── */
+/* ─── VM Banner (Sci-Fi Themed) ─── */
 .vm-banner {
   padding: 10px 20px;
   font-size: 14px;
   font-family: 'Rajdhani', sans-serif;
   font-weight: 600;
   animation: vmSlideDown 0.3s ease-out;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(10, 15, 20, 0.9) 0%, rgba(5, 8, 12, 0.95) 100%);
+  backdrop-filter: blur(10px);
 }
 
 @keyframes vmSlideDown {
@@ -154,21 +392,21 @@ h6 {
 }
 
 .vm-banner-stopped {
-  background: linear-gradient(90deg, rgba(82, 235, 52, 0.05), transparent);
-  border-left: 4px solid var(--mc-green);
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.05), transparent);
+  border-left: 3px solid var(--sci-fi-cyan);
   color: var(--mc-text-main);
 }
 
 .vm-banner-starting {
   background: linear-gradient(90deg, rgba(251, 191, 36, 0.1), transparent);
-  border-left: 4px solid #fbbf24;
-  color: #fbbf24;
+  border-left: 3px solid var(--sci-fi-amber);
+  color: var(--sci-fi-amber);
 }
 
 .vm-banner-stopping {
   background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), transparent);
-  border-left: 4px solid #ef4444;
-  color: #ef4444;
+  border-left: 3px solid var(--sci-fi-red);
+  color: var(--sci-fi-red);
 }
 
 .vm-banner-btn {
@@ -176,19 +414,53 @@ h6 {
   text-transform: uppercase;
   font-weight: 700;
   letter-spacing: 1px;
-  font-size: 0.9rem;
-  background: rgba(82, 235, 52, 0.2);
-  color: var(--mc-green);
-  border: 1px solid rgba(82, 235, 52, 0.5);
+  font-size: 0.85rem;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.15) 0%, rgba(0, 240, 255, 0.08) 100%);
+  color: var(--sci-fi-cyan);
+  border: 1px solid rgba(0, 240, 255, 0.4);
   border-radius: 6px;
   padding: 6px 16px;
-  cursor: pointer;
   transition: all 0.2s;
   backdrop-filter: blur(4px);
 }
 
 .vm-banner-btn:hover {
-  background: rgba(82, 235, 52, 0.3);
-  box-shadow: 0 0 15px rgba(82, 235, 52, 0.2);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.25) 0%, rgba(0, 240, 255, 0.12) 100%);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
   transform: translateY(-1px);
+}
+
+/* ─── Navigation Active State ─── */
+.nav-active {
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.15) 0%, transparent 100%);
+  border-left: 3px solid var(--sci-fi-cyan);
+}
+
+.nav-active svg {
+  color: var(--sci-fi-cyan);
+  filter: drop-shadow(0 0 8px var(--sci-fi-cyan));
+}
+
+/* ─── Terminal Text ─── */
+.terminal-text {
+  font-family: 'Fira Code', monospace;
+  color: var(--sci-fi-cyan);
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+}
+
+/* ─── Corner Accents ─── */
+.corner-accent {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--sci-fi-cyan);
+}
+
+.corner-accent-tl { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.corner-accent-tr { top: -1px; right: -1px; border-left: none; border-bottom: none; }
+.corner-accent-bl { bottom: -1px; left: -1px; border-right: none; border-top: none; }
+.corner-accent-br { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+.corner-accent-purple {
+  border-color: var(--sci-fi-purple);
 }

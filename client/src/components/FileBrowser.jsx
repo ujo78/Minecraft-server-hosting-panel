@@ -88,14 +88,14 @@ export default function FileBrowser({ serverId }) {
         return (
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Edit2 className="w-5 h-5 text-mc-green" />
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2 font-['VT323'] uppercase">
+                        <Edit2 className="w-5 h-5 text-[#00f0ff]" />
                         Editing: {editingFile.split('/').pop()}
                     </h2>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setEditingFile(null)}
-                            className="px-4 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                            className="minecraft-btn"
                         >
                             <X className="w-4 h-4 inline mr-1" />
                             Cancel
@@ -103,7 +103,7 @@ export default function FileBrowser({ serverId }) {
                         <button
                             onClick={handleSaveFile}
                             disabled={saving}
-                            className="px-4 py-2 bg-mc-green text-black rounded-lg font-bold hover:bg-green-500 disabled:opacity-50"
+                            className="minecraft-btn minecraft-btn-primary disabled:opacity-50"
                         >
                             <Save className="w-4 h-4 inline mr-1" />
                             {saving ? 'Saving...' : 'Save'}
@@ -114,7 +114,7 @@ export default function FileBrowser({ serverId }) {
                 <textarea
                     value={fileContent}
                     onChange={(e) => setFileContent(e.target.value)}
-                    className="w-full h-[500px] bg-dark-900 border border-dark-600 rounded-lg p-4 text-white font-mono text-sm focus:outline-none focus:border-mc-green"
+                    className="w-full h-[500px] bg-black/50 border border-[#00f0ff]/30 rounded-lg p-4 text-white font-mono text-sm focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                 />
             </div>
         );
@@ -123,14 +123,14 @@ export default function FileBrowser({ serverId }) {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Folder className="w-5 h-5 text-mc-green" />
+                <h2 className="text-xl font-bold text-white flex items-center gap-2 font-['VT323'] uppercase">
+                    <Folder className="w-5 h-5 text-[#00f0ff]" />
                     File Browser
                 </h2>
                 {path !== '/' && (
                     <button
                         onClick={() => setPath('/')}
-                        className="text-mc-green hover:underline flex items-center gap-1 text-sm"
+                        className="text-[#00f0ff] hover:text-white flex items-center gap-1 text-sm transition-colors"
                     >
                         <Home className="w-4 h-4" />
                         Root
@@ -138,13 +138,16 @@ export default function FileBrowser({ serverId }) {
                 )}
             </div>
 
-            <div className="bg-dark-800 border border-dark-700 rounded-lg p-3">
-                <div className="text-gray-400 text-sm font-mono">{path}</div>
+            <div className="sci-fi-panel p-3 relative">
+                <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
+                <div className="text-[#00f0ff] text-sm font-mono">{path}</div>
             </div>
 
-            <div className="bg-dark-800 border border-dark-700 rounded-lg divide-y divide-dark-700">
+            <div className="sci-fi-panel divide-y divide-[#00f0ff]/10">
+                <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
+                <div className="corner-accent corner-accent-tr corner-accent-purple" style={{width: '12px', height: '12px'}}></div>
                 {loading ? (
-                    <div className="text-center py-8 text-gray-400">Loading...</div>
+                    <div className="text-center py-8 text-[#00f0ff]">Loading...</div>
                 ) : items.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">Empty directory</div>
                 ) : (
@@ -152,19 +155,19 @@ export default function FileBrowser({ serverId }) {
                         <div
                             key={idx}
                             onClick={() => handleItemClick(item)}
-                            className="flex items-center justify-between p-3 hover:bg-dark-900 cursor-pointer transition-colors"
+                            className="flex items-center justify-between p-3 hover:bg-white/5 cursor-pointer transition-colors"
                         >
                             <div className="flex items-center gap-3">
                                 {item.type === 'directory' ? (
-                                    <Folder className="w-5 h-5 text-blue-400" />
+                                    <Folder className="w-5 h-5 text-[#b829dd]" />
                                 ) : (
-                                    <FileText className="w-5 h-5 text-gray-400" />
+                                    <FileText className="w-5 h-5 text-[#00f0ff]" />
                                 )}
                                 <span className="text-white">{item.name}</span>
                             </div>
                             <div className="flex items-center gap-3 text-sm text-gray-500">
-                                {item.type === 'file' && <span>{formatSize(item.size)}</span>}
-                                {item.type === 'directory' && <ChevronRight className="w-4 h-4" />}
+                                {item.type === 'file' && <span className="font-mono text-[#00f0ff]">{formatSize(item.size)}</span>}
+                                {item.type === 'directory' && <ChevronRight className="w-4 h-4 text-[#00f0ff]" />}
                             </div>
                         </div>
                     ))

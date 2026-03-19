@@ -52,36 +52,38 @@ export default function ResourceMonitor({ serverId }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Disk Usage Overview */}
                 <div className="bg-dark-800 p-6 rounded-lg border border-dark-700">
-                    <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                        <HardDrive className="w-5 h-5 text-mc-green" /> Disk Usage
+                    <h3 className="text-white font-bold mb-4 flex items-center gap-2 font-['VT323'] uppercase tracking-wide">
+                        <HardDrive className="w-5 h-5 text-[#00f0ff]" /> Disk Usage
                     </h3>
 
                     {usage && (
                         <div className="space-y-4">
                             <div className="flex justify-between items-end">
-                                <span className="text-3xl font-bold text-white">{formatBytes(usage.used)}</span>
+                                <span className="text-3xl font-bold text-white font-['VT323']">{formatBytes(usage.used)}</span>
                                 <span className="text-gray-400">of {formatBytes(usage.total)}</span>
                             </div>
 
-                            <div className="w-full bg-dark-700 h-4 rounded-full overflow-hidden">
+                            <div className="w-full bg-black/50 h-4 rounded-full overflow-hidden border border-[#00f0ff]/20">
                                 <div
-                                    className="bg-mc-green h-full transition-all duration-500"
+                                    className="bg-gradient-to-r from-[#00f0ff] to-[#b829dd] h-full transition-all duration-500"
                                     style={{ width: `${usage.percent}%` }}
                                 />
                             </div>
-                            <div className="text-right text-sm text-mc-green font-bold">{usage.percent}% Used</div>
+                            <div className="text-right text-sm text-[#00f0ff] font-bold font-mono">{usage.percent}% Used</div>
                         </div>
                     )}
                 </div>
 
                 {/* Server Directory Size */}
-                <div className="bg-dark-800 p-6 rounded-lg border border-dark-700">
-                    <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                        <Server className="w-5 h-5 text-blue-500" /> Server Folder
+                <div className="sci-fi-panel p-6 relative">
+                    <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
+                    <div className="corner-accent corner-accent-tr corner-accent-purple" style={{width: '12px', height: '12px'}}></div>
+                    <h3 className="text-white font-bold mb-4 flex items-center gap-2 font-['VT323'] uppercase tracking-wide">
+                        <Server className="w-5 h-5 text-[#b829dd]" /> Server Folder
                     </h3>
                     {usage && (
                         <div className="text-center py-4">
-                            <span className="text-4xl font-bold text-white block mb-2">{formatBytes(usage.serverSize)}</span>
+                            <span className="text-4xl font-bold text-white block mb-2 font-['VT323']">{formatBytes(usage.serverSize)}</span>
                             <span className="text-gray-400 text-sm">Total Server Size</span>
                         </div>
                     )}
@@ -89,8 +91,9 @@ export default function ResourceMonitor({ serverId }) {
             </div>
 
             {/* Breakdown Chart */}
-            <div className="bg-dark-800 p-6 rounded-lg border border-dark-700">
-                <h3 className="text-white font-bold mb-6">Storage Breakdown</h3>
+            <div className="sci-fi-panel p-6 relative">
+                <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
+                <h3 className="text-white font-bold mb-6 font-['VT323'] uppercase tracking-wide text-xl">Storage Breakdown</h3>
 
                 <div className="h-80 w-full flex flex-col md:flex-row items-center">
                     <div className="w-full md:w-1/2 h-full">
@@ -111,7 +114,7 @@ export default function ResourceMonitor({ serverId }) {
                                 </Pie>
                                 <Tooltip
                                     formatter={(value) => formatBytes(value)}
-                                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', color: '#fff' }}
+                                    contentStyle={{ backgroundColor: '#0a0a0f', border: '1px solid rgba(0, 240, 255, 0.3)', color: '#fff', borderRadius: '8px' }}
                                 />
                                 <Legend />
                             </PieChart>
@@ -120,12 +123,12 @@ export default function ResourceMonitor({ serverId }) {
 
                     <div className="w-full md:w-1/2 space-y-4 mt-4 md:mt-0">
                         {pieData.map((item, index) => (
-                            <div key={item.name} className="flex justify-between items-center p-3 bg-dark-900 rounded border border-dark-600">
+                            <div key={item.name} className="flex justify-between items-center p-3 bg-black/40 rounded border border-[#00f0ff]/10">
                                 <div className="flex items-center gap-3">
                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                                     <span className="text-gray-300">{item.name}</span>
                                 </div>
-                                <span className="text-white font-bold">{formatBytes(item.value)}</span>
+                                <span className="text-white font-bold font-mono">{formatBytes(item.value)}</span>
                             </div>
                         ))}
                     </div>

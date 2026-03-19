@@ -72,14 +72,14 @@ export default function PropertiesEditor({ serverId }) {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-mc-green" />
+                <h2 className="text-xl font-bold text-white flex items-center gap-2 font-['VT323'] uppercase tracking-wide">
+                    <Settings className="w-5 h-5 text-[#00f0ff]" />
                     Server Properties
                 </h2>
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="bg-mc-green text-black px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-green-500 disabled:opacity-50"
+                    className="minecraft-btn minecraft-btn-primary disabled:opacity-50"
                 >
                     <Save className="w-4 h-4" />
                     {saving ? 'Saving...' : 'Save'}
@@ -94,15 +94,17 @@ export default function PropertiesEditor({ serverId }) {
             )}
 
             {success && (
-                <div className="bg-mc-green/10 border border-mc-green/50 rounded-lg p-3 text-mc-green text-sm">
-                    ✅ Properties saved successfully!
+                <div className="bg-[#00f0ff]/10 border border-[#00f0ff]/50 rounded-lg p-3 text-[#00f0ff] text-sm">
+                    Properties saved successfully!
                 </div>
             )}
 
-            <div className="bg-dark-800 border border-dark-700 rounded-lg p-6 space-y-4">
+            <div className="sci-fi-panel p-6 space-y-4">
+                <div className="corner-accent corner-accent-tl" style={{width: '12px', height: '12px'}}></div>
+                <div className="corner-accent corner-accent-tr corner-accent-purple" style={{width: '12px', height: '12px'}}></div>
                 {commonProps.map(prop => (
                     <div key={prop.key}>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label className="block text-sm font-medium text-gray-300 mb-2 uppercase tracking-wider font-['VT323']">
                             {prop.label}
                         </label>
                         {prop.type === 'text' || prop.type === 'number' ? (
@@ -110,27 +112,27 @@ export default function PropertiesEditor({ serverId }) {
                                 type={prop.type}
                                 value={properties[prop.key] || ''}
                                 onChange={(e) => updateProperty(prop.key, e.target.value)}
-                                className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mc-green"
+                                className="w-full bg-black/50 border border-[#00f0ff]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                             />
                         ) : prop.type === 'select' ? (
                             <select
                                 value={properties[prop.key] || prop.options[0]}
                                 onChange={(e) => updateProperty(prop.key, e.target.value)}
-                                className="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-mc-green"
+                                className="w-full bg-black/50 border border-[#00f0ff]/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                             >
                                 {prop.options.map(opt => (
                                     <option key={opt} value={opt}>{opt}</option>
                                 ))}
                             </select>
                         ) : prop.type === 'boolean' ? (
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <label className="flex items-center gap-2 cursor-pointer group">
                                 <input
                                     type="checkbox"
                                     checked={properties[prop.key] === 'true'}
                                     onChange={(e) => updateProperty(prop.key, e.target.checked ? 'true' : 'false')}
-                                    className="w-5 h-5 rounded bg-dark-900 border-dark-600 text-mc-green focus:ring-mc-green"
+                                    className="w-5 h-5 rounded bg-black/50 border-[#00f0ff]/30 text-[#00f0ff] focus:ring-[#00f0ff] focus:ring-offset-0"
                                 />
-                                <span className="text-gray-400 text-sm">Enabled</span>
+                                <span className="text-gray-400 text-sm group-hover:text-[#00f0ff] transition-colors">Enabled</span>
                             </label>
                         ) : null}
                     </div>
