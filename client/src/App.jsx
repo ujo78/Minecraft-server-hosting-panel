@@ -17,17 +17,10 @@ import WhitelistManager from './components/WhitelistManager';
 import FileBrowser from './components/FileBrowser';
 import Login from './components/Login';
 import VMStatusBanner from './components/VMStatusBanner';
-import FluidGlass from './components/ReactBits/FluidGlass';
 import TargetCursor from './components/ReactBits/TargetCursor';
 import BounceCards from './components/ReactBits/BounceCards';
 
-// Error boundary to gracefully handle FluidGlass crashes (e.g. missing .glb models)
-class GlassBoundary extends React.Component {
-    constructor(props) { super(props); this.state = { hasError: false }; }
-    static getDerivedStateFromError() { return { hasError: true }; }
-    componentDidCatch(err) { console.warn('[FluidGlass] Failed to load:', err.message); }
-    render() { return this.state.hasError ? null : this.props.children; }
-}
+
 
 const socket = io({
     withCredentials: true
@@ -253,23 +246,7 @@ function App() {
               hoverDuration={0.2}
             />
 
-            {/* FluidGlass Background - wrapped in error boundary for missing .glb files */}
-            <GlassBoundary>
-              <Suspense fallback={null}>
-                <div className="fixed inset-0 -z-10 w-full h-full pointer-events-none opacity-40 mix-blend-screen">
-                  <FluidGlass 
-                    mode="lens"
-                    lensProps={{
-                      scale: 0.25,
-                      ior: 1.15,
-                      thickness: 5,
-                      chromaticAberration: 0.1,
-                      anisotropy: 0.01  
-                    }}
-                  />
-                </div>
-              </Suspense>
-            </GlassBoundary>
+
 
             {/* VM Status Banner - Floating & Glass */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl pointer-events-none">
@@ -512,7 +489,8 @@ function App() {
                 </main>
             </div>
 
-            {/* Background Overlay for Depth removed because FluidGlass handles it */}
+            {/* Background Overlay for Depth */}
+            <div className="fixed inset-0 bg-black/50 pointer-events-none z-0" />
 
             {/* ── Server Switch Confirmation Modal ── */}
             {pendingSwitch && (
