@@ -1,0 +1,35 @@
+[TAILING] Tailing last 100 lines for [all] processes (change the value with --lines option)
+/home/rajrakshit838/.pm2/pm2.log last 100 lines:
+PM2        | 2026-03-19T10:25:00: PM2 log: ===============================================================================
+PM2        | 2026-03-19T10:25:00: PM2 log: --- New PM2 Daemon started ----------------------------------------------------
+PM2        | 2026-03-19T10:25:00: PM2 log: Time                 : Thu Mar 19 2026 10:25:00 GMT+0000 (Coordinated Universal Time)
+PM2        | 2026-03-19T10:25:00: PM2 log: PM2 version          : 6.0.14
+PM2        | 2026-03-19T10:25:00: PM2 log: Node.js version      : 18.19.1
+PM2        | 2026-03-19T10:25:00: PM2 log: Current arch         : x64
+PM2        | 2026-03-19T10:25:00: PM2 log: PM2 home             : /home/rajrakshit838/.pm2
+PM2        | 2026-03-19T10:25:00: PM2 log: PM2 PID file         : /home/rajrakshit838/.pm2/pm2.pid
+PM2        | 2026-03-19T10:25:00: PM2 log: RPC socket file      : /home/rajrakshit838/.pm2/rpc.sock
+PM2        | 2026-03-19T10:25:00: PM2 log: BUS socket file      : /home/rajrakshit838/.pm2/pub.sock
+PM2        | 2026-03-19T10:25:00: PM2 log: Application log path : /home/rajrakshit838/.pm2/logs
+PM2        | 2026-03-19T10:25:00: PM2 log: Worker Interval      : 30000
+PM2        | 2026-03-19T10:25:00: PM2 log: Process dump file    : /home/rajrakshit838/.pm2/dump.pm2
+PM2        | 2026-03-19T10:25:00: PM2 log: Concurrent actions   : 2
+PM2        | 2026-03-19T10:25:00: PM2 log: SIGTERM timeout      : 1600
+PM2        | 2026-03-19T10:25:00: PM2 log: Runtime Binary       : /usr/bin/node
+PM2        | 2026-03-19T10:25:00: PM2 log: ===============================================================================
+PM2        | 2026-03-19T10:26:12: PM2 log: App [mcpanel-api:0] starting in -fork mode-
+PM2        | 2026-03-19T10:26:12: PM2 log: App [mcpanel-api:0] online
+PM2        | 2026-03-19T10:27:21: PM2 log: Stopping app:mcpanel-api id:0
+PM2        | 2026-03-19T10:27:21: PM2 log: App [mcpanel-api:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-03-19T10:27:21: PM2 log: pid=20857 msg=process killed
+PM2        | 2026-03-19T10:27:21: PM2 log: App [mcpanel-api:0] starting in -fork mode-
+PM2        | 2026-03-19T10:27:21: PM2 log: App [mcpanel-api:0] online
+PM2        | 2026-03-19T10:28:47: PM2 log: Stopping app:mcpanel-api id:0
+PM2        | 2026-03-19T10:28:48: PM2 log: App [mcpanel-api:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-03-19T10:28:48: PM2 log: pid=20993 msg=process killed
+PM2        | 2026-03-19T10:28:48: PM2 log: App [mcpanel-api:0] starting in -fork mode-
+PM2        | 2026-03-19T10:28:48: PM2 log: App [mcpanel-api:0] online
+PM2        | 2026-03-19T10:50:04: PM2 log: Stopping app:mcpanel-api id:0
+PM2        | 2026-03-19T10:50:04: PM2 log: App [mcpanel-api:0] exited with code [0] via signal [SIGINT]
+PM2        | 2026-03-19T10:50:04: PM2 log: pid=21348 msg=process killed
+
